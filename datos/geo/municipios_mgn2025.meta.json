@@ -1,0 +1,19 @@
+{
+  "fuente": "DANE, Marco Geoestadístico Nacional (MGN) 2025, capa Municipio",
+  "servicio": "https://geoportal.dane.gov.co/mparcgis/rest/services/MGN2025/Serv_CapasMGN_2025/FeatureServer/317",
+  "fecha_descarga": "2026-09-25",
+  "sistema_referencia": "EPSG:4326 (WGS84)",
+  "simplificacion": "Generalización de 0,002 grados y coordenadas con 4 decimales, para visualización en el navegador.",
+  "registros": 1122,
+  "clave_union": "divipola (campo MPIO_CDPMP del DANE, 5 dígitos)",
+  "tipos": {
+    "MUNICIPIO": 1103,
+    "AREA_NO_MUNICIPALIZADA": 18,
+    "ISLA": 1
+  },
+  "codigo_sin_geometria_en_la_tabla": {
+    "divipola": "94663",
+    "nombre": "Mapiripana, Guainía",
+    "motivo": "El código 94663 no está en el MGN 2025. Correspondía a un área no municipalizada suprimida cuando Guainía se reorganizó. Los códigos vigentes de esa zona (94343 y 94883 a 94888) sí tienen polígono y también están en la tabla."
+  }
+}
