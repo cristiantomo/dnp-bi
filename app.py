@@ -20,6 +20,7 @@ ORDEN_CATEGORIA = {"1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "ESP": 7}
 
 @st.cache_data
 def tabla():
+    """Municipios sin áreas no municipalizadas. Cada fila incluye mdm para TOPSIS."""
     filas = [fila for fila in datos.cargar_tabla() if not fila["anm"]]
     indice, contexto = datos.cargar_geo()
     contexto = [
@@ -112,6 +113,67 @@ with st.sidebar:
         value=(nbi_min, nbi_max),
         help="Necesidades básicas insatisfechas, en porcentaje.",
     )
+    st.divider()
+    st.header("Priorización TOPSIS")
+    st.caption(
+        "Se calcula sobre los municipios que pasan el filtro. "
+        "ICEE es costo: menor cobertura, más prioridad. "
+        "VSS, NBI y mdm son beneficio: un valor más alto, más prioridad. "
+        f"El peso de VSS se aplica a VSS {serie_vss.lower()}."
+    )
+    peso_icee = st.number_input(
+        "Peso ICEE",
+        min_value=0.0,
+        max_value=1.0,
+        value=0.25,
+        step=0.01,
+        format="%.2f",
+        key="peso_icee",
+        help="Costo. Una cobertura más baja aumenta la prioridad.",
+    )
+    peso_vss = st.number_input(
+        f"Peso VSS {serie_vss.lower()}",
+        min_value=0.0,
+        max_value=1.0,
+        value=0.25,
+        step=0.01,
+        format="%.2f",
+        key="peso_vss",
+        help=f"Beneficio. Se aplica a las viviendas sin servicio {serie_vss.lower()}.",
+    )
+    peso_nbi = st.number_input(
+        "Peso NBI",
+        min_value=0.0,
+        max_value=1.0,
+        value=0.25,
+        step=0.01,
+        format="%.2f",
+        key="peso_nbi",
+        help="Beneficio. Más necesidades básicas insatisfechas aumentan la prioridad.",
+    )
+    peso_mdm = st.number_input(
+        "Peso mdm",
+        min_value=0.0,
+        max_value=1.0,
+        value=0.25,
+        step=0.01,
+        format="%.2f",
+        key="peso_mdm",
+        help="Beneficio. mdm es el puntaje de la Medición de Desempeño Municipal: un puntaje más alto aumenta la prioridad.",
+    )
+    pesos_ingresados = (peso_icee, peso_vss, peso_nbi, peso_mdm)
+    suma_pesos = None if any(peso is None for peso in pesos_ingresados) else sum(pesos_ingresados)
+    st.caption(
+        "Suma de pesos: —"
+        if suma_pesos is None
+        else f"Suma de pesos: {datos.formato_decimal(suma_pesos)}"
+    )
+    calcular_topsis = st.button(
+        "Calcular TOPSIS",
+        type="primary",
+        icon=":material/calculate:",
+        width="stretch",
+    )
 
 filtradas = datos.filtrar(
     filas,
@@ -124,6 +186,63 @@ filtradas = datos.filtrar(
     categorias_sel,
     zomac,
 )
+
+if calcular_topsis:
+    if suma_pesos is None:
+        st.sidebar.error("Cada peso debe tener un valor entre 0 y 1. No se calculó la priorización.")
+    elif abs(suma_pesos - 1) > datos.TOLERANCIA_PESOS:
+        st.sidebar.error(
+            f"Los pesos suman {datos.formato_decimal(suma_pesos)} y deben sumar 1,00. "
+            "No se calculó la priorización."
+        )
+    else:
+        try:
+            puntajes = datos.topsis(
+                filtradas,
+                [
+                    ("icee", "ICEE", False, peso_icee),
+                    (campo_vss, f"VSS {serie_vss.lower()}", True, peso_vss),
+                    ("nbi", "NBI", True, peso_nbi),
+                    ("mdm", "mdm", True, peso_mdm),
+                ],
+            )
+        except datos.TopsisError as error:
+            st.sidebar.error(str(error))
+        else:
+            st.session_state.topsis = {
+                "puntajes": puntajes,
+                "serie": serie_vss,
+                "pesos": {
+                    "icee": peso_icee,
+                    "vss": peso_vss,
+                    "nbi": peso_nbi,
+                    "mdm": peso_mdm,
+                },
+                "divipolas": tuple(sorted(puntajes)),
+            }
+            st.sidebar.success(
+                f"Priorización calculada para {len(puntajes)} municipios con VSS {serie_vss.lower()}."
+            )
+
+resultado_topsis = st.session_state.get("topsis")
+if resultado_topsis:
+    pesos_guardados = resultado_topsis["pesos"]
+    st.sidebar.caption(
+        "Último cálculo: "
+        f"{len(resultado_topsis['puntajes'])} municipios, "
+        f"VSS {resultado_topsis['serie'].lower()}, "
+        f"pesos ICEE {datos.formato_decimal(pesos_guardados['icee'])}, "
+        f"VSS {datos.formato_decimal(pesos_guardados['vss'])}, "
+        f"NBI {datos.formato_decimal(pesos_guardados['nbi'])}, "
+        f"mdm {datos.formato_decimal(pesos_guardados['mdm'])}."
+    )
+
+puntajes_topsis = resultado_topsis["puntajes"] if resultado_topsis else {}
+filas_vista = []
+for fila in filtradas:
+    vista = dict(fila)
+    vista["priorizacion"] = puntajes_topsis.get(fila["divipola"])
+    filas_vista.append(vista)
 
 st.title("Municipios con ICEE menor a 95%")
 st.caption(
@@ -139,6 +258,7 @@ icee_ponderado = (
 )
 nbi_valores = [fila["nbi"] for fila in filtradas if fila["nbi"] is not None]
 nbi_promedio = sum(nbi_valores) / len(nbi_valores) if nbi_valores else None
+coeficientes = [fila["priorizacion"] for fila in filas_vista if fila["priorizacion"] is not None]
 
 with st.container(horizontal=True):
     st.metric("Municipios", f"{len(filtradas):,}".replace(",", "."), border=True)
@@ -158,6 +278,39 @@ with st.container(horizontal=True):
         datos.formato_decimal(nbi_promedio) if nbi_promedio is not None else "—",
         border=True,
     )
+    st.metric(
+        "Priorización máxima",
+        datos.formato_coeficiente(max(coeficientes)) if coeficientes else "—",
+        border=True,
+        help="Mayor coeficiente TOPSIS entre los municipios del filtro que entraron en el último cálculo.",
+    )
+
+if resultado_topsis:
+    completos = tuple(
+        sorted(
+            fila["divipola"]
+            for fila in filtradas
+            if None not in (fila["icee"], fila[campo_vss], fila["nbi"], fila["mdm"])
+        )
+    )
+    pesos_actuales = (peso_icee, peso_vss, peso_nbi, peso_mdm)
+    pesos_previos = (
+        resultado_topsis["pesos"]["icee"],
+        resultado_topsis["pesos"]["vss"],
+        resultado_topsis["pesos"]["nbi"],
+        resultado_topsis["pesos"]["mdm"],
+    )
+    if (
+        resultado_topsis["serie"] != serie_vss
+        or resultado_topsis["divipolas"] != completos
+        or pesos_previos != pesos_actuales
+    ):
+        st.warning(
+            "Los filtros, la serie de VSS o los pesos cambiaron después del cálculo. "
+            f"El coeficiente que se muestra es el de VSS {resultado_topsis['serie'].lower()} "
+            "con el filtro y los pesos de ese momento. "
+            "Pulsa Calcular TOPSIS para actualizarlo."
+        )
 
 with st.container(border=True):
     variable = st.segmented_control(
@@ -167,8 +320,14 @@ with st.container(border=True):
         required=True,
     )
     campo = datos.CAMPO[variable]
-    minimo, maximo = datos.limites(filas, campo)
-    logaritmica = variable.startswith("VSS")
+    if variable == "Priorización":
+        minimo, maximo = 0.0, 1.0
+        logaritmica = False
+        if not coeficientes:
+            st.info("Calcula TOPSIS en el panel izquierdo para ver el coeficiente en el mapa.")
+    else:
+        minimo, maximo = datos.limites(filas, campo)
+        logaritmica = variable.startswith("VSS")
     if logaritmica:
         minimo_eje = max(minimo, 1)
         maximo_eje = max(maximo, minimo_eje + 1)
@@ -198,7 +357,7 @@ with st.container(border=True):
     )
     st.altair_chart(grafico)
 
-    poligonos = datos.poligonos_filtrados(filtradas, indice_geo, variable, minimo, maximo)
+    poligonos = datos.poligonos_filtrados(filas_vista, indice_geo, variable, minimo, maximo)
     vista = datos.vista_para(poligonos)
     mapa = pdk.Deck(
         layers=[
@@ -241,20 +400,26 @@ with st.container(border=True):
                 "DIVIPOLA {divipola}\n"
                 "ICEE {icee}\n"
                 "NBI {nbi}\n"
+                "mdm {mdm}\n"
                 "VSS urbano {vss_urbano}\n"
                 "VSS rural {vss_rural}\n"
-                "VSS total {vss_total}"
+                "VSS total {vss_total}\n"
+                "Priorización {priorizacion}"
             )
         },
     )
     st.pydeck_chart(mapa, height=640)
+    if variable == "Priorización":
+        nota_escala = " El coeficiente va de 0 a 1: más color, más prioridad."
+    elif logaritmica:
+        nota_escala = " En viviendas sin servicio la escala de color es logarítmica."
+    else:
+        nota_escala = ""
     st.caption(
-        "En color, los municipios del filtro. En gris, el resto de municipios del DANE. "
-        "Geometría generalizada a 0,002 grados, WGS84. "
-        "En viviendas sin servicio la escala de color es logarítmica."
-        if logaritmica
-        else "En color, los municipios del filtro. En gris, el resto de municipios del DANE. "
+        "En color, los municipios del filtro. En gris, el resto de municipios del DANE "
+        "y, en priorización, los que no tienen coeficiente. "
         "Geometría generalizada a 0,002 grados, WGS84."
+        + nota_escala
     )
 
 tabla_df = pd.DataFrame(
@@ -270,13 +435,18 @@ tabla_df = pd.DataFrame(
             "VSS total": fila["vss_total"],
             "NBI": fila["nbi"],
             "ICEE": fila["icee"],
+            "mdm": fila["mdm"],
+            "Priorización": fila["priorizacion"],
             "Área km²": fila["area_km2"],
         }
-        for fila in filtradas
+        for fila in filas_vista
     ]
 )
 if not tabla_df.empty:
-    tabla_df = tabla_df.sort_values(["ICEE", f"VSS {serie_vss.lower()}"], ascending=[True, False])
+    if tabla_df["Priorización"].notna().any():
+        tabla_df = tabla_df.sort_values(["Priorización", "ICEE"], ascending=[False, True])
+    else:
+        tabla_df = tabla_df.sort_values(["ICEE", f"VSS {serie_vss.lower()}"], ascending=[True, False])
 
 with st.container(border=True):
     st.subheader("Municipios filtrados")
@@ -295,6 +465,14 @@ with st.container(border=True):
             "VSS total": st.column_config.NumberColumn(format="localized"),
             "NBI": st.column_config.NumberColumn(format="%.2f"),
             "ICEE": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%.2f"),
+            "mdm": st.column_config.NumberColumn("mdm", format="%.2f"),
+            "Priorización": st.column_config.ProgressColumn(
+                "Priorización",
+                min_value=0,
+                max_value=1,
+                format="%.3f",
+                help="Coeficiente TOPSIS. Más alto, más prioridad.",
+            ),
             "Área km²": st.column_config.NumberColumn(format="%.1f"),
         },
         hide_index=True,

@@ -11,13 +11,14 @@ ROOT = Path(__file__).resolve().parent
 CSV_PATH = ROOT / "datos" / "Municipio con ICEE menor a 95 por ciento.csv"
 GEO_PATH = ROOT / "datos" / "geo" / "municipios_mgn2025.geojson"
 
-VARIABLES = ("ICEE", "NBI", "VSS urbano", "VSS rural", "VSS total")
+VARIABLES = ("ICEE", "NBI", "VSS urbano", "VSS rural", "VSS total", "Priorización")
 CAMPO = {
     "ICEE": "icee",
     "NBI": "nbi",
     "VSS urbano": "vss_urbano",
     "VSS rural": "vss_rural",
     "VSS total": "vss_total",
+    "Priorización": "priorizacion",
 }
 SERIES_VSS = {
     "Urbano": "vss_urbano",
@@ -33,6 +34,7 @@ PALETAS = {
     "VSS urbano": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
     "VSS rural": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
     "VSS total": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
+    "Priorización": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
 }
 COLORES_LEYENDA = {
     "ICEE": ["#9F1239", "#D97706", "#0F766E"],
@@ -40,7 +42,9 @@ COLORES_LEYENDA = {
     "VSS urbano": ["#99F6E4", "#D97706", "#9F1239"],
     "VSS rural": ["#99F6E4", "#D97706", "#9F1239"],
     "VSS total": ["#99F6E4", "#D97706", "#9F1239"],
+    "Priorización": ["#99F6E4", "#D97706", "#9F1239"],
 }
+TOLERANCIA_PESOS = 1e-4
 GRIS_SIN_DATO = [148, 163, 184, 170]
 VISTA_COLOMBIA = {"latitude": 4.57, "longitude": -73.9, "zoom": 4.55}
 
@@ -80,6 +84,7 @@ def cargar_tabla(path: Path = CSV_PATH) -> list[dict]:
                     "vss_urbano": _numero(_texto(registro, "VSS Urbano")),
                     "vss_rural": _numero(_texto(registro, "VSS Rural")),
                     "vss_total": _numero(_texto(registro, "VSS Total")),
+                    "mdm": _numero(_texto(registro, "mdm")),
                     "anm": _texto(registro, "ANM") == "1",
                 }
             )
@@ -155,10 +160,91 @@ def color_valor(variable: str, valor: float | None, minimo: float, maximo: float
     return [*rgb, 210]
 
 
+class TopsisError(ValueError):
+    """El cálculo TOPSIS no se puede hacer con estos datos o estos pesos."""
+
+
+def topsis(
+    filas: list[dict],
+    criterios: list[tuple[str, str, bool, float]],
+) -> dict[str, float]:
+    """Coeficiente de priorización TOPSIS por DIVIPOLA.
+
+    Cada criterio es (campo, etiqueta, es_beneficio, peso). En un beneficio,
+    el valor alto se acerca al ideal positivo. En un costo, el valor bajo.
+    El coeficiente va de 0 a 1: más alto, más cerca del ideal positivo.
+    """
+    if len(criterios) < 2:
+        raise TopsisError("TOPSIS necesita al menos dos criterios.")
+    pesos = [peso for _, _, _, peso in criterios]
+    if any(peso < 0 for peso in pesos):
+        raise TopsisError("Los pesos no pueden ser negativos.")
+    if abs(sum(pesos) - 1) > TOLERANCIA_PESOS:
+        raise TopsisError("Los pesos deben sumar 1.")
+
+    campos = [campo for campo, _, _, _ in criterios]
+    utiles: list[tuple[str, list[float]]] = []
+    for fila in filas:
+        valores = [fila[campo] for campo in campos]
+        if any(valor is None for valor in valores):
+            continue
+        utiles.append((fila["divipola"], valores))
+    if len(utiles) < 2:
+        raise TopsisError(
+            "Se necesitan al menos dos municipios con ICEE, VSS, NBI y mdm. "
+            f"En el filtro hay {len(filas)} y {len(utiles)} tienen los cuatro datos."
+        )
+
+    normas = []
+    for indice, (_, etiqueta, _, _) in enumerate(criterios):
+        norma = math.sqrt(sum(valores[indice] ** 2 for _, valores in utiles))
+        if norma == 0:
+            raise TopsisError(
+                f"{etiqueta} vale cero en todos los municipios del filtro, "
+                "así que no se puede normalizar."
+            )
+        normas.append(norma)
+
+    matriz = [
+        [peso * valores[indice] / normas[indice] for indice, peso in enumerate(pesos)]
+        for _, valores in utiles
+    ]
+    ideal_positivo = []
+    ideal_negativo = []
+    for indice, (_, _, es_beneficio, _) in enumerate(criterios):
+        columna = [fila[indice] for fila in matriz]
+        if es_beneficio:
+            ideal_positivo.append(max(columna))
+            ideal_negativo.append(min(columna))
+        else:
+            ideal_positivo.append(min(columna))
+            ideal_negativo.append(max(columna))
+
+    puntajes = {}
+    for (codigo, _), ponderada in zip(utiles, matriz):
+        distancia_positiva = math.sqrt(
+            sum((ponderada[indice] - ideal_positivo[indice]) ** 2 for indice in range(len(criterios)))
+        )
+        distancia_negativa = math.sqrt(
+            sum((ponderada[indice] - ideal_negativo[indice]) ** 2 for indice in range(len(criterios)))
+        )
+        if distancia_positiva == 0:
+            puntajes[codigo] = 1.0
+        else:
+            puntajes[codigo] = distancia_negativa / (distancia_positiva + distancia_negativa)
+    return puntajes
+
+
 def formato_decimal(valor: float | None) -> str:
     if valor is None:
         return "Sin dato"
     return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def formato_coeficiente(valor: float | None) -> str:
+    if valor is None:
+        return "Sin cálculo"
+    return f"{valor:.3f}".replace(".", ",")
 
 
 def formato_entero(valor: float | None) -> str:
@@ -192,7 +278,9 @@ def poligonos_filtrados(
                     "vss_urbano": formato_entero(fila["vss_urbano"]),
                     "vss_rural": formato_entero(fila["vss_rural"]),
                     "vss_total": formato_entero(fila["vss_total"]),
-                    "fill_color": color_valor(variable, fila[campo], minimo, maximo),
+                    "mdm": formato_decimal(fila.get("mdm")),
+                    "priorizacion": formato_coeficiente(fila.get("priorizacion")),
+                    "fill_color": color_valor(variable, fila.get(campo), minimo, maximo),
                 },
                 "geometry": base["geometry"],
             }
