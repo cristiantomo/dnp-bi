@@ -75,10 +75,12 @@ with st.sidebar:
         placeholder="Todos los municipios",
         key="municipios-" + "|".join(departamentos_sel),
     )
-    categorias_sel = st.multiselect(
+    categorias_sel = st.pills(
         "Categoría",
         categorias,
-        placeholder="Todas las categorías",
+        selection_mode="multi",
+        default=[],
+        help="Puedes marcar varias. Si no marcas ninguna, entran todas las categorías.",
     )
     zomac = st.segmented_control(
         "ZOMAC",
@@ -92,7 +94,7 @@ with st.sidebar:
         list(datos.SERIES_VSS),
         default="Total",
         required=True,
-        help="Elige si el rango se aplica al componente urbano, al rural o al total.",
+        help="Elige el componente urbano, rural o total. Ese mismo entra en el filtro, en el peso de TOPSIS y en el mapa.",
     )
     campo_vss = datos.SERIES_VSS[serie_vss]
     vss_min, vss_max = datos.limites(filas, campo_vss)
@@ -118,7 +120,7 @@ with st.sidebar:
     st.caption(
         "Se calcula sobre los municipios que pasan el filtro. "
         "ICEE es costo: menor cobertura, más prioridad. "
-        "VSS, NBI y mdm son beneficio: un valor más alto, más prioridad. "
+        "VSS, NBI y MDM son beneficio: un valor más alto, más prioridad. "
         f"El peso de VSS se aplica a VSS {serie_vss.lower()}."
     )
     peso_icee = st.number_input(
@@ -152,14 +154,14 @@ with st.sidebar:
         help="Beneficio. Más necesidades básicas insatisfechas aumentan la prioridad.",
     )
     peso_mdm = st.number_input(
-        "Peso mdm",
+        "Peso MDM",
         min_value=0.0,
         max_value=1.0,
         value=0.25,
         step=0.01,
         format="%.2f",
         key="peso_mdm",
-        help="Beneficio. mdm es el puntaje de la Medición de Desempeño Municipal: un puntaje más alto aumenta la prioridad.",
+        help="Beneficio. MDM es el puntaje de la Medición de Desempeño Municipal: un puntaje más alto aumenta la prioridad.",
     )
     pesos_ingresados = (peso_icee, peso_vss, peso_nbi, peso_mdm)
     suma_pesos = None if any(peso is None for peso in pesos_ingresados) else sum(pesos_ingresados)
@@ -203,7 +205,7 @@ if calcular_topsis:
                     ("icee", "ICEE", False, peso_icee),
                     (campo_vss, f"VSS {serie_vss.lower()}", True, peso_vss),
                     ("nbi", "NBI", True, peso_nbi),
-                    ("mdm", "mdm", True, peso_mdm),
+                    ("mdm", "MDM", True, peso_mdm),
                 ],
             )
         except datos.TopsisError as error:
@@ -234,7 +236,7 @@ if resultado_topsis:
         f"pesos ICEE {datos.formato_decimal(pesos_guardados['icee'])}, "
         f"VSS {datos.formato_decimal(pesos_guardados['vss'])}, "
         f"NBI {datos.formato_decimal(pesos_guardados['nbi'])}, "
-        f"mdm {datos.formato_decimal(pesos_guardados['mdm'])}."
+        f"MDM {datos.formato_decimal(pesos_guardados['mdm'])}."
     )
 
 puntajes_topsis = resultado_topsis["puntajes"] if resultado_topsis else {}
@@ -313,12 +315,24 @@ if resultado_topsis:
         )
 
 with st.container(border=True):
-    variable = st.segmented_control(
-        "Variable del mapa",
-        datos.VARIABLES,
-        default="ICEE",
-        required=True,
-    )
+    opciones_mapa = datos.variables_mapa(serie_vss)
+    if "variable_mapa" not in st.session_state:
+        variable = st.segmented_control(
+            "Variable del mapa",
+            opciones_mapa,
+            default="Priorización",
+            key="variable_mapa",
+            required=True,
+        )
+    else:
+        if st.session_state["variable_mapa"] not in opciones_mapa:
+            st.session_state["variable_mapa"] = opciones_mapa[-1]
+        variable = st.segmented_control(
+            "Variable del mapa",
+            opciones_mapa,
+            key="variable_mapa",
+            required=True,
+        )
     campo = datos.CAMPO[variable]
     if variable == "Priorización":
         minimo, maximo = 0.0, 1.0
@@ -400,7 +414,7 @@ with st.container(border=True):
                 "DIVIPOLA {divipola}\n"
                 "ICEE {icee}\n"
                 "NBI {nbi}\n"
-                "mdm {mdm}\n"
+                "MDM {mdm}\n"
                 "VSS urbano {vss_urbano}\n"
                 "VSS rural {vss_rural}\n"
                 "VSS total {vss_total}\n"
@@ -428,6 +442,7 @@ tabla_df = pd.DataFrame(
             "DIVIPOLA": fila["divipola"],
             "Departamento": fila["departamento"],
             "Municipio": fila["municipio"],
+            "Priorización": fila["priorizacion"],
             "Categoría": fila["categoria"],
             "ZOMAC": "Sí" if fila["zomac"] else "No",
             "VSS urbano": fila["vss_urbano"],
@@ -435,8 +450,7 @@ tabla_df = pd.DataFrame(
             "VSS total": fila["vss_total"],
             "NBI": fila["nbi"],
             "ICEE": fila["icee"],
-            "mdm": fila["mdm"],
-            "Priorización": fila["priorizacion"],
+            "MDM": fila["mdm"],
             "Área km²": fila["area_km2"],
         }
         for fila in filas_vista
@@ -465,7 +479,7 @@ with st.container(border=True):
             "VSS total": st.column_config.NumberColumn(format="localized"),
             "NBI": st.column_config.NumberColumn(format="%.2f"),
             "ICEE": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%.2f"),
-            "mdm": st.column_config.NumberColumn("mdm", format="%.2f"),
+            "MDM": st.column_config.NumberColumn("MDM", format="%.2f"),
             "Priorización": st.column_config.ProgressColumn(
                 "Priorización",
                 min_value=0,

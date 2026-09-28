@@ -11,14 +11,14 @@ ROOT = Path(__file__).resolve().parent
 CSV_PATH = ROOT / "datos" / "Municipio con ICEE menor a 95 por ciento.csv"
 GEO_PATH = ROOT / "datos" / "geo" / "municipios_mgn2025.geojson"
 
-VARIABLES = ("ICEE", "NBI", "VSS urbano", "VSS rural", "VSS total", "Priorización")
 CAMPO = {
+    "Priorización": "priorizacion",
     "ICEE": "icee",
     "NBI": "nbi",
+    "MDM": "mdm",
     "VSS urbano": "vss_urbano",
     "VSS rural": "vss_rural",
     "VSS total": "vss_total",
-    "Priorización": "priorizacion",
 }
 SERIES_VSS = {
     "Urbano": "vss_urbano",
@@ -26,23 +26,30 @@ SERIES_VSS = {
     "Total": "vss_total",
 }
 
-# Bajo, medio y alto. En ICEE el valor alto es mejor cobertura.
-# En NBI y en viviendas sin servicio el valor alto es la situación más grave.
+
+def variables_mapa(serie_vss: str) -> list[str]:
+    """Orden del mapa: priorización, ICEE, NBI, MDM y la serie de VSS elegida."""
+    return ["Priorización", "ICEE", "NBI", "MDM", f"VSS {serie_vss.lower()}"]
+
+# Bajo, medio y alto. En ICEE y en MDM el valor alto es mejor.
+# En NBI, viviendas sin servicio y priorización el valor alto es la situación más grave.
 PALETAS = {
+    "Priorización": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
     "ICEE": ((159, 18, 57), (217, 119, 6), (15, 118, 110)),
     "NBI": ((15, 118, 110), (217, 119, 6), (159, 18, 57)),
+    "MDM": ((159, 18, 57), (217, 119, 6), (15, 118, 110)),
     "VSS urbano": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
     "VSS rural": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
     "VSS total": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
-    "Priorización": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
 }
 COLORES_LEYENDA = {
+    "Priorización": ["#99F6E4", "#D97706", "#9F1239"],
     "ICEE": ["#9F1239", "#D97706", "#0F766E"],
     "NBI": ["#0F766E", "#D97706", "#9F1239"],
+    "MDM": ["#9F1239", "#D97706", "#0F766E"],
     "VSS urbano": ["#99F6E4", "#D97706", "#9F1239"],
     "VSS rural": ["#99F6E4", "#D97706", "#9F1239"],
     "VSS total": ["#99F6E4", "#D97706", "#9F1239"],
-    "Priorización": ["#99F6E4", "#D97706", "#9F1239"],
 }
 TOLERANCIA_PESOS = 1e-4
 GRIS_SIN_DATO = [148, 163, 184, 170]
