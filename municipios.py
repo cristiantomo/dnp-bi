@@ -19,6 +19,7 @@ CAMPO = {
     "VSS urbano": "vss_urbano",
     "VSS rural": "vss_rural",
     "VSS total": "vss_total",
+    "Valor agregado": "valor_agregado",
 }
 SERIES_VSS = {
     "Urbano": "vss_urbano",
@@ -28,11 +29,11 @@ SERIES_VSS = {
 
 
 def variables_mapa(serie_vss: str) -> list[str]:
-    """Orden del mapa: priorización, ICEE, NBI, MDM y la serie de VSS elegida."""
-    return ["Priorización", "ICEE", "NBI", "MDM", f"VSS {serie_vss.lower()}"]
+    """Orden del mapa: priorización, ICEE, NBI, MDM, la serie de VSS y valor agregado."""
+    return ["Priorización", "ICEE", "NBI", "MDM", f"VSS {serie_vss.lower()}", "Valor agregado"]
 
 # Bajo, medio y alto. En ICEE y en MDM el valor alto es mejor.
-# En NBI, viviendas sin servicio y priorización el valor alto es la situación más grave.
+# En NBI, viviendas sin servicio, valor agregado y priorización el valor alto se pinta más oscuro.
 PALETAS = {
     "Priorización": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
     "ICEE": ((159, 18, 57), (217, 119, 6), (15, 118, 110)),
@@ -41,6 +42,7 @@ PALETAS = {
     "VSS urbano": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
     "VSS rural": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
     "VSS total": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
+    "Valor agregado": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
 }
 COLORES_LEYENDA = {
     "Priorización": ["#99F6E4", "#D97706", "#9F1239"],
@@ -50,6 +52,7 @@ COLORES_LEYENDA = {
     "VSS urbano": ["#99F6E4", "#D97706", "#9F1239"],
     "VSS rural": ["#99F6E4", "#D97706", "#9F1239"],
     "VSS total": ["#99F6E4", "#D97706", "#9F1239"],
+    "Valor agregado": ["#99F6E4", "#D97706", "#9F1239"],
 }
 TOLERANCIA_PESOS = 1e-4
 GRIS_SIN_DATO = [148, 163, 184, 170]
@@ -92,6 +95,7 @@ def cargar_tabla(path: Path = CSV_PATH) -> list[dict]:
                     "vss_rural": _numero(_texto(registro, "VSS Rural")),
                     "vss_total": _numero(_texto(registro, "VSS Total")),
                     "mdm": _numero(_texto(registro, "mdm")),
+                    "valor_agregado": _numero(_texto(registro, "valor agregado")),
                     "anm": _texto(registro, "ANM") == "1",
                 }
             )
@@ -114,6 +118,7 @@ def filtrar(
     campo_vss: str,
     vss: tuple[float, float],
     nbi: tuple[float, float],
+    valor_agregado: tuple[float, float],
     categorias: list[str],
     zomac: str,
 ) -> list[dict]:
@@ -141,6 +146,9 @@ def filtrar(
             continue
         if fila["nbi"] is not None and not (nbi[0] <= fila["nbi"] <= nbi[1]):
             continue
+        valor = fila["valor_agregado"]
+        if valor is None or not (valor_agregado[0] <= valor <= valor_agregado[1]):
+            continue
         resultado.append(fila)
     return resultado
 
@@ -152,7 +160,7 @@ def _mezcla(color_a: tuple[int, int, int], color_b: tuple[int, int, int], peso: 
 def color_valor(variable: str, valor: float | None, minimo: float, maximo: float) -> list[int]:
     if valor is None or maximo <= minimo:
         return GRIS_SIN_DATO
-    if variable.startswith("VSS"):
+    if variable.startswith("VSS") or variable == "Valor agregado":
         piso = max(minimo, 1)
         techo = max(maximo, piso + 1)
         posicion = (math.log(max(valor, piso)) - math.log(piso)) / (math.log(techo) - math.log(piso))
@@ -197,9 +205,10 @@ def topsis(
             continue
         utiles.append((fila["divipola"], valores))
     if len(utiles) < 2:
+        etiquetas = ", ".join(etiqueta for _, etiqueta, _, _ in criterios)
         raise TopsisError(
-            "Se necesitan al menos dos municipios con ICEE, VSS, NBI y mdm. "
-            f"En el filtro hay {len(filas)} y {len(utiles)} tienen los cuatro datos."
+            f"Se necesitan al menos dos municipios con {etiquetas}. "
+            f"En el filtro hay {len(filas)} y {len(utiles)} tienen todos esos datos."
         )
 
     normas = []
@@ -286,6 +295,7 @@ def poligonos_filtrados(
                     "vss_rural": formato_entero(fila["vss_rural"]),
                     "vss_total": formato_entero(fila["vss_total"]),
                     "mdm": formato_decimal(fila.get("mdm")),
+                    "valor_agregado": formato_decimal(fila.get("valor_agregado")),
                     "priorizacion": formato_coeficiente(fila.get("priorizacion")),
                     "fill_color": color_valor(variable, fila.get(campo), minimo, maximo),
                 },

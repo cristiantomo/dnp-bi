@@ -67,6 +67,7 @@ def _universo(
     campo_vss: str,
     vss_rango,
     nbi_rango,
+    valor_agregado_rango,
     categorias_sel: list[str],
     zomac: str,
 ) -> list[dict]:
@@ -78,6 +79,7 @@ def _universo(
         campo_vss,
         vss_rango if vss_rango is not None else RANGO_AMPLIO,
         nbi_rango if nbi_rango is not None else RANGO_AMPLIO,
+        valor_agregado_rango if valor_agregado_rango is not None else RANGO_AMPLIO,
         categorias_sel,
         zomac,
     )
@@ -99,7 +101,7 @@ def _rango_manual(clave: str):
 
 @st.cache_data
 def tabla():
-    """Municipios sin áreas no municipalizadas. Cada fila incluye mdm para TOPSIS."""
+    """Municipios sin áreas no municipalizadas. Cada fila incluye mdm y valor agregado para TOPSIS."""
     filas = [fila for fila in datos.cargar_tabla() if not fila["anm"]]
     indice, contexto = datos.cargar_geo()
     contexto = [
@@ -139,6 +141,7 @@ with st.sidebar:
             _universo(
                 filas, None, departamentos_sel, municipios_sel, campo_vss,
                 _rango_manual(f"vss-{serie_vss}"), _rango_manual("rango-nbi"),
+                _rango_manual("rango-valor-agregado"),
                 categorias_sel, zomac,
             ),
             "icee",
@@ -210,7 +213,9 @@ with st.sidebar:
                 filas,
                 icee if st.session_state.get("rango-icee-manual") else None,
                 departamentos_sel, municipios_sel, campo_vss,
-                None, _rango_manual("rango-nbi"), categorias_sel, zomac,
+                None, _rango_manual("rango-nbi"),
+                _rango_manual("rango-valor-agregado"),
+                categorias_sel, zomac,
             ),
             campo_vss,
         ),
@@ -234,7 +239,9 @@ with st.sidebar:
                 icee if st.session_state.get("rango-icee-manual") else None,
                 departamentos_sel, municipios_sel, campo_vss,
                 vss if st.session_state.get(f"vss-{serie_vss}-manual") else None,
-                None, categorias_sel, zomac,
+                None,
+                _rango_manual("rango-valor-agregado"),
+                categorias_sel, zomac,
             ),
             "nbi",
         ),
@@ -251,19 +258,46 @@ with st.sidebar:
         args=("rango-nbi",),
         help="El mínimo y el máximo son los de los municipios que pasan los demás filtros.",
     )
+    va_min, va_max = _preparar_rango(
+        "rango-valor-agregado",
+        *_extremos_de(
+            _universo(
+                filas,
+                icee if st.session_state.get("rango-icee-manual") else None,
+                departamentos_sel, municipios_sel, campo_vss,
+                vss if st.session_state.get(f"vss-{serie_vss}-manual") else None,
+                nbi if st.session_state.get("rango-nbi-manual") else None,
+                None,
+                categorias_sel, zomac,
+            ),
+            "valor_agregado",
+        ),
+        entero=False,
+    )
+    valor_agregado = st.slider(
+        "Valor agregado",
+        min_value=va_min,
+        max_value=va_max,
+        step=0.01,
+        format="%.2f",
+        key="rango-valor-agregado",
+        on_change=_marcar_rango,
+        args=("rango-valor-agregado",),
+        help="El mínimo y el máximo son los de los municipios que pasan los demás filtros.",
+    )
     st.divider()
     st.header("Priorización TOPSIS")
     st.caption(
         "Se calcula sobre los municipios que pasan el filtro. "
-        "ICEE es costo: menor cobertura, más prioridad. "
-        "VSS, NBI y MDM son beneficio: un valor más alto, más prioridad. "
+        "ICEE es costo: un valor más bajo, más prioridad. "
+        "VSS, NBI, MDM y valor agregado son beneficio: un valor más alto, más prioridad. "
         f"El peso de VSS se aplica a VSS {serie_vss.lower()}."
     )
     peso_icee = st.number_input(
         "Peso ICEE",
         min_value=0.0,
         max_value=1.0,
-        value=0.25,
+        value=0.20,
         step=0.01,
         format="%.2f",
         key="peso_icee",
@@ -273,7 +307,7 @@ with st.sidebar:
         f"Peso VSS {serie_vss.lower()}",
         min_value=0.0,
         max_value=1.0,
-        value=0.25,
+        value=0.20,
         step=0.01,
         format="%.2f",
         key="peso_vss",
@@ -283,7 +317,7 @@ with st.sidebar:
         "Peso NBI",
         min_value=0.0,
         max_value=1.0,
-        value=0.25,
+        value=0.20,
         step=0.01,
         format="%.2f",
         key="peso_nbi",
@@ -293,13 +327,23 @@ with st.sidebar:
         "Peso MDM",
         min_value=0.0,
         max_value=1.0,
-        value=0.25,
+        value=0.20,
         step=0.01,
         format="%.2f",
         key="peso_mdm",
         help="Beneficio. MDM es el puntaje de la Medición de Desempeño Municipal: un puntaje más alto aumenta la prioridad.",
     )
-    pesos_ingresados = (peso_icee, peso_vss, peso_nbi, peso_mdm)
+    peso_valor_agregado = st.number_input(
+        "Peso Valor Agregado",
+        min_value=0.0,
+        max_value=1.0,
+        value=0.20,
+        step=0.01,
+        format="%.2f",
+        key="peso_valor_agregado",
+        help="Beneficio. Un valor agregado más alto aumenta la prioridad.",
+    )
+    pesos_ingresados = (peso_icee, peso_vss, peso_nbi, peso_mdm, peso_valor_agregado)
     suma_pesos = None if any(peso is None for peso in pesos_ingresados) else sum(pesos_ingresados)
     st.caption(
         "Suma de pesos: —"
@@ -321,6 +365,7 @@ filtradas = datos.filtrar(
     campo_vss,
     vss,
     nbi,
+    valor_agregado,
     categorias_sel,
     zomac,
 )
@@ -342,6 +387,7 @@ if calcular_topsis:
                     (campo_vss, f"VSS {serie_vss.lower()}", True, peso_vss),
                     ("nbi", "NBI", True, peso_nbi),
                     ("mdm", "MDM", True, peso_mdm),
+                    ("valor_agregado", "Valor agregado", True, peso_valor_agregado),
                 ],
             )
         except datos.TopsisError as error:
@@ -355,6 +401,7 @@ if calcular_topsis:
                     "vss": peso_vss,
                     "nbi": peso_nbi,
                     "mdm": peso_mdm,
+                    "valor_agregado": peso_valor_agregado,
                 },
                 "divipolas": tuple(sorted(puntajes)),
             }
@@ -372,7 +419,8 @@ if resultado_topsis:
         f"pesos ICEE {datos.formato_decimal(pesos_guardados['icee'])}, "
         f"VSS {datos.formato_decimal(pesos_guardados['vss'])}, "
         f"NBI {datos.formato_decimal(pesos_guardados['nbi'])}, "
-        f"MDM {datos.formato_decimal(pesos_guardados['mdm'])}."
+        f"MDM {datos.formato_decimal(pesos_guardados['mdm'])}, "
+        f"valor agregado {datos.formato_decimal(pesos_guardados.get('valor_agregado'))}."
     )
 
 puntajes_topsis = resultado_topsis["puntajes"] if resultado_topsis else {}
@@ -428,15 +476,18 @@ if resultado_topsis:
         sorted(
             fila["divipola"]
             for fila in filtradas
-            if None not in (fila["icee"], fila[campo_vss], fila["nbi"], fila["mdm"])
+            if None not in (
+                fila["icee"], fila[campo_vss], fila["nbi"], fila["mdm"], fila["valor_agregado"]
+            )
         )
     )
-    pesos_actuales = (peso_icee, peso_vss, peso_nbi, peso_mdm)
+    pesos_actuales = (peso_icee, peso_vss, peso_nbi, peso_mdm, peso_valor_agregado)
     pesos_previos = (
         resultado_topsis["pesos"]["icee"],
         resultado_topsis["pesos"]["vss"],
         resultado_topsis["pesos"]["nbi"],
         resultado_topsis["pesos"]["mdm"],
+        resultado_topsis["pesos"].get("valor_agregado"),
     )
     if (
         resultado_topsis["serie"] != serie_vss
@@ -462,7 +513,7 @@ with st.container(border=True):
         )
     else:
         if st.session_state["variable_mapa"] not in opciones_mapa:
-            st.session_state["variable_mapa"] = opciones_mapa[-1]
+            st.session_state["variable_mapa"] = f"VSS {serie_vss.lower()}"
         variable = st.segmented_control(
             "Variable del mapa",
             opciones_mapa,
@@ -477,7 +528,7 @@ with st.container(border=True):
             st.info("Calcula TOPSIS en el panel izquierdo para ver el coeficiente en el mapa.")
     else:
         minimo, maximo = datos.limites(filas, campo)
-        logaritmica = variable.startswith("VSS")
+        logaritmica = variable.startswith("VSS") or variable == "Valor agregado"
     if logaritmica:
         minimo_eje = max(minimo, 1)
         maximo_eje = max(maximo, minimo_eje + 1)
@@ -554,6 +605,7 @@ with st.container(border=True):
                 "VSS urbano {vss_urbano}\n"
                 "VSS rural {vss_rural}\n"
                 "VSS total {vss_total}\n"
+                "Valor agregado {valor_agregado}\n"
                 "Priorización {priorizacion}"
             )
         },
@@ -561,6 +613,8 @@ with st.container(border=True):
     st.pydeck_chart(mapa, height=640)
     if variable == "Priorización":
         nota_escala = " El coeficiente va de 0 a 1: más color, más prioridad."
+    elif variable == "Valor agregado":
+        nota_escala = " En valor agregado la escala de color es logarítmica."
     elif logaritmica:
         nota_escala = " En viviendas sin servicio la escala de color es logarítmica."
     else:
@@ -587,6 +641,7 @@ tabla_df = pd.DataFrame(
             "NBI": fila["nbi"],
             "ICEE": fila["icee"],
             "MDM": fila["mdm"],
+            "Valor agregado": fila["valor_agregado"],
             "Área km²": fila["area_km2"],
         }
         for fila in filas_vista
@@ -616,6 +671,7 @@ with st.container(border=True):
             "NBI": st.column_config.NumberColumn(format="%.2f"),
             "ICEE": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%.2f"),
             "MDM": st.column_config.NumberColumn("MDM", format="%.2f"),
+            "Valor agregado": st.column_config.NumberColumn(format="%.2f"),
             "Priorización": st.column_config.ProgressColumn(
                 "Priorización",
                 min_value=0,
