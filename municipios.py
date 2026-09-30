@@ -325,8 +325,57 @@ def vista_para(features: list[dict]) -> dict:
 
 
 def limites(filas: list[dict], campo: str) -> tuple[float, float]:
+    extremos_campo = extremos(filas, campo)
+    if extremos_campo is None:
+        raise ValueError(f"No hay valores de {campo}.")
+    return extremos_campo
+
+
+def extremos(filas: list[dict], campo: str) -> tuple[float, float] | None:
     valores = [fila[campo] for fila in filas if fila[campo] is not None]
-    return min(valores), max(valores)
+    if not valores:
+        return None
+    return float(min(valores)), float(max(valores))
+
+
+def intervalo_slider(
+    actual: tuple[float, float] | list[float] | None,
+    manual: bool,
+    limites_previos: tuple[float, float] | list[float] | None,
+    minimo: float,
+    maximo: float,
+) -> tuple[tuple[float, float], bool]:
+    """Ajusta el intervalo elegido cuando el mínimo o el máximo del slider cambian.
+
+    Si el usuario no movió el slider, o lo dejó cubriendo todo el rango anterior,
+    el intervalo pasa a ser el rango nuevo. Si lo estrechó, se conserva esa
+    elección recortada a los límites nuevos.
+    """
+    if _cubre_limites(actual, limites_previos):
+        manual = False
+    if not manual or not isinstance(actual, (tuple, list)) or len(actual) != 2:
+        return (minimo, maximo), False
+    bajo, alto = float(actual[0]), float(actual[1])
+    if alto < minimo or bajo > maximo:
+        return (minimo, maximo), False
+    bajo = min(max(bajo, minimo), maximo)
+    alto = min(max(alto, minimo), maximo)
+    if bajo > alto:
+        return (minimo, maximo), False
+    return (bajo, alto), True
+
+
+def _cubre_limites(
+    actual: tuple[float, float] | list[float] | None,
+    limites_previos: tuple[float, float] | list[float] | None,
+) -> bool:
+    if not isinstance(actual, (tuple, list)) or limites_previos is None:
+        return False
+    if len(actual) != 2 or len(limites_previos) != 2:
+        return False
+    return abs(float(actual[0]) - float(limites_previos[0])) < 1e-6 and abs(
+        float(actual[1]) - float(limites_previos[1])
+    ) < 1e-6
 
 
 def muestra_leyenda(minimo: float, maximo: float, logaritmica: bool, n: int = 48) -> list[float]:

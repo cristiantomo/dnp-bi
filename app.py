@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 import pandas as pd
 import pydeck as pdk
 import streamlit as st
@@ -16,6 +18,83 @@ st.set_page_config(
 )
 
 ORDEN_CATEGORIA = {"1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "ESP": 7}
+RANGO_AMPLIO = (-1e18, 1e18)
+
+
+def _marcar_rango(clave: str) -> None:
+    st.session_state[f"{clave}-manual"] = True
+
+
+def _preparar_rango(clave: str, minimo: float, maximo: float, entero: bool) -> tuple[float, float]:
+    if entero:
+        minimo = int(round(minimo))
+        maximo = int(round(maximo))
+        if maximo <= minimo:
+            maximo = minimo + 1
+    else:
+        minimo = round(math.floor(float(minimo) * 100 + 1e-6) / 100, 2)
+        maximo = round(math.ceil(float(maximo) * 100 - 1e-6) / 100, 2)
+        if maximo <= minimo:
+            maximo = round(minimo + 0.01, 2)
+    seleccion, manual = datos.intervalo_slider(
+        st.session_state.get(clave),
+        bool(st.session_state.get(f"{clave}-manual")),
+        st.session_state.get(f"{clave}-limites"),
+        minimo,
+        maximo,
+    )
+    if entero:
+        seleccion = (int(round(seleccion[0])), int(round(seleccion[1])))
+    else:
+        seleccion = (
+            min(max(round(seleccion[0], 2), minimo), maximo),
+            min(max(round(seleccion[1], 2), minimo), maximo),
+        )
+    if seleccion[0] > seleccion[1]:
+        seleccion = (minimo, maximo)
+        manual = False
+    st.session_state[clave] = seleccion
+    st.session_state[f"{clave}-manual"] = manual
+    st.session_state[f"{clave}-limites"] = (minimo, maximo)
+    return minimo, maximo
+
+
+def _universo(
+    origen: list[dict],
+    icee_rango,
+    departamentos_sel: list[str],
+    municipios_sel: list[str],
+    campo_vss: str,
+    vss_rango,
+    nbi_rango,
+    categorias_sel: list[str],
+    zomac: str,
+) -> list[dict]:
+    return datos.filtrar(
+        origen,
+        icee_rango if icee_rango is not None else RANGO_AMPLIO,
+        departamentos_sel,
+        municipios_sel,
+        campo_vss,
+        vss_rango if vss_rango is not None else RANGO_AMPLIO,
+        nbi_rango if nbi_rango is not None else RANGO_AMPLIO,
+        categorias_sel,
+        zomac,
+    )
+
+
+def _extremos_de(subconjunto: list[dict], campo: str) -> tuple[float, float]:
+    hallados = datos.extremos(subconjunto, campo)
+    return hallados if hallados is not None else (0.0, 1.0)
+
+
+def _rango_manual(clave: str):
+    if not st.session_state.get(f"{clave}-manual"):
+        return None
+    valor = st.session_state.get(clave)
+    if isinstance(valor, (tuple, list)) and len(valor) == 2:
+        return tuple(valor)
+    return None
 
 
 @st.cache_data
@@ -36,8 +115,6 @@ def tabla():
 
 
 filas, indice_geo, contexto = tabla()
-icee_min, icee_max = datos.limites(filas, "icee")
-nbi_min, nbi_max = datos.limites(filas, "nbi")
 departamentos = sorted({fila["departamento"] for fila in filas})
 categorias = sorted(
     {fila["categoria"] for fila in filas if fila["categoria"]},
@@ -46,18 +123,44 @@ categorias = sorted(
 
 with st.sidebar:
     st.header("Filtros")
-    st.caption("Solo municipios. Las áreas no municipalizadas quedan por fuera.")
+    st.caption(
+        "Solo municipios. Las áreas no municipalizadas quedan por fuera. "
+        "Los rangos se ajustan a los demás filtros."
+    )
+    departamentos_sel = list(st.session_state.get("filtro-departamento", []))
+    municipios_sel = list(st.session_state.get("municipios-" + "|".join(departamentos_sel), []))
+    categorias_sel = list(st.session_state.get("filtro-categoria", []))
+    zomac = st.session_state.get("filtro-zomac", "Todas")
+    serie_vss = st.session_state.get("filtro-vss-serie", "Total")
+    campo_vss = datos.SERIES_VSS[serie_vss]
+    icee_min, icee_max = _preparar_rango(
+        "rango-icee",
+        *_extremos_de(
+            _universo(
+                filas, None, departamentos_sel, municipios_sel, campo_vss,
+                _rango_manual(f"vss-{serie_vss}"), _rango_manual("rango-nbi"),
+                categorias_sel, zomac,
+            ),
+            "icee",
+        ),
+        entero=False,
+    )
     icee = st.slider(
         "ICEE",
         min_value=icee_min,
         max_value=icee_max,
-        value=(icee_min, icee_max),
-        help="Índice de cobertura de energía eléctrica. Un valor más alto es más cobertura.",
+        step=0.01,
+        format="%.2f",
+        key="rango-icee",
+        on_change=_marcar_rango,
+        args=("rango-icee",),
+        help="El mínimo y el máximo son los de los municipios que pasan los demás filtros.",
     )
     departamentos_sel = st.multiselect(
         "Departamento",
         departamentos,
         placeholder="Todos los departamentos",
+        key="filtro-departamento",
     )
     candidatos = [
         fila
@@ -80,12 +183,14 @@ with st.sidebar:
         categorias,
         selection_mode="multi",
         default=[],
+        key="filtro-categoria",
         help="Puedes marcar varias. Si no marcas ninguna, entran todas las categorías.",
     )
     zomac = st.segmented_control(
         "ZOMAC",
         ["Todas", "Sí", "No"],
         default="Todas",
+        key="filtro-zomac",
         required=True,
         help="Zonas más afectadas por el conflicto armado.",
     )
@@ -93,27 +198,58 @@ with st.sidebar:
         "Viviendas sin servicio",
         list(datos.SERIES_VSS),
         default="Total",
+        key="filtro-vss-serie",
         required=True,
         help="Elige el componente urbano, rural o total. Ese mismo entra en el filtro, en el peso de TOPSIS y en el mapa.",
     )
     campo_vss = datos.SERIES_VSS[serie_vss]
-    vss_min, vss_max = datos.limites(filas, campo_vss)
-    vss_min, vss_max = int(vss_min), int(vss_max)
-    if vss_max <= vss_min:
-        vss_max = vss_min + 1
+    vss_min, vss_max = _preparar_rango(
+        f"vss-{serie_vss}",
+        *_extremos_de(
+            _universo(
+                filas,
+                icee if st.session_state.get("rango-icee-manual") else None,
+                departamentos_sel, municipios_sel, campo_vss,
+                None, _rango_manual("rango-nbi"), categorias_sel, zomac,
+            ),
+            campo_vss,
+        ),
+        entero=True,
+    )
     vss = st.slider(
         f"VSS {serie_vss.lower()}",
         min_value=vss_min,
         max_value=vss_max,
-        value=(vss_min, vss_max),
+        step=1,
         key=f"vss-{serie_vss}",
+        on_change=_marcar_rango,
+        args=(f"vss-{serie_vss}",),
+        help="El mínimo y el máximo son los de los municipios que pasan los demás filtros.",
+    )
+    nbi_min, nbi_max = _preparar_rango(
+        "rango-nbi",
+        *_extremos_de(
+            _universo(
+                filas,
+                icee if st.session_state.get("rango-icee-manual") else None,
+                departamentos_sel, municipios_sel, campo_vss,
+                vss if st.session_state.get(f"vss-{serie_vss}-manual") else None,
+                None, categorias_sel, zomac,
+            ),
+            "nbi",
+        ),
+        entero=False,
     )
     nbi = st.slider(
         "NBI",
         min_value=nbi_min,
         max_value=nbi_max,
-        value=(nbi_min, nbi_max),
-        help="Necesidades básicas insatisfechas, en porcentaje.",
+        step=0.01,
+        format="%.2f",
+        key="rango-nbi",
+        on_change=_marcar_rango,
+        args=("rango-nbi",),
+        help="El mínimo y el máximo son los de los municipios que pasan los demás filtros.",
     )
     st.divider()
     st.header("Priorización TOPSIS")
