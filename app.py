@@ -19,6 +19,7 @@ st.set_page_config(
 
 ORDEN_CATEGORIA = {"1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "ESP": 7}
 RANGO_AMPLIO = (-1e18, 1e18)
+PESO_INICIAL = 0.125
 
 
 def _marcar_rango(clave: str) -> None:
@@ -68,6 +69,9 @@ def _universo(
     vss_rango,
     nbi_rango,
     valor_agregado_rango,
+    poblacion_rango,
+    actividades_secundarias_rango,
+    actividades_terciarias_rango,
     categorias_sel: list[str],
     zomac: str,
 ) -> list[dict]:
@@ -80,6 +84,9 @@ def _universo(
         vss_rango if vss_rango is not None else RANGO_AMPLIO,
         nbi_rango if nbi_rango is not None else RANGO_AMPLIO,
         valor_agregado_rango if valor_agregado_rango is not None else RANGO_AMPLIO,
+        poblacion_rango if poblacion_rango is not None else RANGO_AMPLIO,
+        actividades_secundarias_rango if actividades_secundarias_rango is not None else RANGO_AMPLIO,
+        actividades_terciarias_rango if actividades_terciarias_rango is not None else RANGO_AMPLIO,
         categorias_sel,
         zomac,
     )
@@ -88,6 +95,12 @@ def _universo(
 def _extremos_de(subconjunto: list[dict], campo: str) -> tuple[float, float]:
     hallados = datos.extremos(subconjunto, campo)
     return hallados if hallados is not None else (0.0, 1.0)
+
+
+def _peso(valor: float | None) -> str:
+    if valor is None:
+        return "Sin dato"
+    return f"{valor:.3f}".replace(".", ",")
 
 
 def _rango_manual(clave: str):
@@ -101,7 +114,7 @@ def _rango_manual(clave: str):
 
 @st.cache_data
 def tabla():
-    """Municipios sin áreas no municipalizadas. Cada fila incluye mdm y valor agregado para TOPSIS."""
+    """Municipios sin áreas no municipalizadas. Cada fila incluye población, actividades y valor agregado para TOPSIS."""
     filas = [fila for fila in datos.cargar_tabla() if not fila["anm"]]
     indice, contexto = datos.cargar_geo()
     contexto = [
@@ -142,6 +155,9 @@ with st.sidebar:
                 filas, None, departamentos_sel, municipios_sel, campo_vss,
                 _rango_manual(f"vss-{serie_vss}"), _rango_manual("rango-nbi"),
                 _rango_manual("rango-valor-agregado"),
+                _rango_manual("rango-poblacion"),
+                _rango_manual("rango-actividades-secundarias"),
+                _rango_manual("rango-actividades-terciarias"),
                 categorias_sel, zomac,
             ),
             "icee",
@@ -215,6 +231,9 @@ with st.sidebar:
                 departamentos_sel, municipios_sel, campo_vss,
                 None, _rango_manual("rango-nbi"),
                 _rango_manual("rango-valor-agregado"),
+                _rango_manual("rango-poblacion"),
+                _rango_manual("rango-actividades-secundarias"),
+                _rango_manual("rango-actividades-terciarias"),
                 categorias_sel, zomac,
             ),
             campo_vss,
@@ -241,6 +260,9 @@ with st.sidebar:
                 vss if st.session_state.get(f"vss-{serie_vss}-manual") else None,
                 None,
                 _rango_manual("rango-valor-agregado"),
+                _rango_manual("rango-poblacion"),
+                _rango_manual("rango-actividades-secundarias"),
+                _rango_manual("rango-actividades-terciarias"),
                 categorias_sel, zomac,
             ),
             "nbi",
@@ -268,6 +290,9 @@ with st.sidebar:
                 vss if st.session_state.get(f"vss-{serie_vss}-manual") else None,
                 nbi if st.session_state.get("rango-nbi-manual") else None,
                 None,
+                _rango_manual("rango-poblacion"),
+                _rango_manual("rango-actividades-secundarias"),
+                _rango_manual("rango-actividades-terciarias"),
                 categorias_sel, zomac,
             ),
             "valor_agregado",
@@ -285,21 +310,111 @@ with st.sidebar:
         args=("rango-valor-agregado",),
         help="El mínimo y el máximo son los de los municipios que pasan los demás filtros.",
     )
+    pob_min, pob_max = _preparar_rango(
+        "rango-poblacion",
+        *_extremos_de(
+            _universo(
+                filas,
+                icee if st.session_state.get("rango-icee-manual") else None,
+                departamentos_sel, municipios_sel, campo_vss,
+                vss if st.session_state.get(f"vss-{serie_vss}-manual") else None,
+                nbi if st.session_state.get("rango-nbi-manual") else None,
+                valor_agregado if st.session_state.get("rango-valor-agregado-manual") else None,
+                None,
+                _rango_manual("rango-actividades-secundarias"),
+                _rango_manual("rango-actividades-terciarias"),
+                categorias_sel, zomac,
+            ),
+            "poblacion",
+        ),
+        entero=True,
+    )
+    poblacion = st.slider(
+        "Población",
+        min_value=pob_min,
+        max_value=pob_max,
+        step=1,
+        key="rango-poblacion",
+        on_change=_marcar_rango,
+        args=("rango-poblacion",),
+        help="El mínimo y el máximo son los de los municipios que pasan los demás filtros.",
+    )
+    sec_min, sec_max = _preparar_rango(
+        "rango-actividades-secundarias",
+        *_extremos_de(
+            _universo(
+                filas,
+                icee if st.session_state.get("rango-icee-manual") else None,
+                departamentos_sel, municipios_sel, campo_vss,
+                vss if st.session_state.get(f"vss-{serie_vss}-manual") else None,
+                nbi if st.session_state.get("rango-nbi-manual") else None,
+                valor_agregado if st.session_state.get("rango-valor-agregado-manual") else None,
+                poblacion if st.session_state.get("rango-poblacion-manual") else None,
+                None,
+                _rango_manual("rango-actividades-terciarias"),
+                categorias_sel, zomac,
+            ),
+            "actividades_secundarias",
+        ),
+        entero=False,
+    )
+    actividades_secundarias = st.slider(
+        "Actividades secundarias",
+        min_value=sec_min,
+        max_value=sec_max,
+        step=0.01,
+        format="%.2f",
+        key="rango-actividades-secundarias",
+        on_change=_marcar_rango,
+        args=("rango-actividades-secundarias",),
+        help="El mínimo y el máximo son los de los municipios que pasan los demás filtros.",
+    )
+    ter_min, ter_max = _preparar_rango(
+        "rango-actividades-terciarias",
+        *_extremos_de(
+            _universo(
+                filas,
+                icee if st.session_state.get("rango-icee-manual") else None,
+                departamentos_sel, municipios_sel, campo_vss,
+                vss if st.session_state.get(f"vss-{serie_vss}-manual") else None,
+                nbi if st.session_state.get("rango-nbi-manual") else None,
+                valor_agregado if st.session_state.get("rango-valor-agregado-manual") else None,
+                poblacion if st.session_state.get("rango-poblacion-manual") else None,
+                actividades_secundarias if st.session_state.get("rango-actividades-secundarias-manual") else None,
+                None,
+                categorias_sel, zomac,
+            ),
+            "actividades_terciarias",
+        ),
+        entero=False,
+    )
+    actividades_terciarias = st.slider(
+        "Actividades terciarias",
+        min_value=ter_min,
+        max_value=ter_max,
+        step=0.01,
+        format="%.2f",
+        key="rango-actividades-terciarias",
+        on_change=_marcar_rango,
+        args=("rango-actividades-terciarias",),
+        help="El mínimo y el máximo son los de los municipios que pasan los demás filtros.",
+    )
     st.divider()
     st.header("Priorización TOPSIS")
     st.caption(
         "Se calcula sobre los municipios que pasan el filtro. "
         "ICEE es costo: un valor más bajo, más prioridad. "
-        "VSS, NBI, MDM y valor agregado son beneficio: un valor más alto, más prioridad. "
+        "VSS, NBI, MDM, valor agregado, población, actividades secundarias "
+        "y actividades terciarias son beneficio: un valor más alto, más prioridad. "
         f"El peso de VSS se aplica a VSS {serie_vss.lower()}."
     )
     peso_icee = st.number_input(
         "Peso ICEE",
         min_value=0.0,
         max_value=1.0,
-        value=0.20,
-        step=0.01,
-        format="%.2f",
+        value=PESO_INICIAL,
+        step=0.001,
+        format="%.3f",
         key="peso_icee",
         help="Costo. Una cobertura más baja aumenta la prioridad.",
     )
@@ -307,9 +422,9 @@ with st.sidebar:
         f"Peso VSS {serie_vss.lower()}",
         min_value=0.0,
         max_value=1.0,
-        value=0.20,
-        step=0.01,
-        format="%.2f",
+        value=PESO_INICIAL,
+        step=0.001,
+        format="%.3f",
         key="peso_vss",
         help=f"Beneficio. Se aplica a las viviendas sin servicio {serie_vss.lower()}.",
     )
@@ -317,9 +432,9 @@ with st.sidebar:
         "Peso NBI",
         min_value=0.0,
         max_value=1.0,
-        value=0.20,
-        step=0.01,
-        format="%.2f",
+        value=PESO_INICIAL,
+        step=0.001,
+        format="%.3f",
         key="peso_nbi",
         help="Beneficio. Más necesidades básicas insatisfechas aumentan la prioridad.",
     )
@@ -327,9 +442,9 @@ with st.sidebar:
         "Peso MDM",
         min_value=0.0,
         max_value=1.0,
-        value=0.20,
-        step=0.01,
-        format="%.2f",
+        value=PESO_INICIAL,
+        step=0.001,
+        format="%.3f",
         key="peso_mdm",
         help="Beneficio. MDM es el puntaje de la Medición de Desempeño Municipal: un puntaje más alto aumenta la prioridad.",
     )
@@ -337,13 +452,52 @@ with st.sidebar:
         "Peso Valor Agregado",
         min_value=0.0,
         max_value=1.0,
-        value=0.20,
-        step=0.01,
-        format="%.2f",
+        value=PESO_INICIAL,
+        step=0.001,
+        format="%.3f",
         key="peso_valor_agregado",
         help="Beneficio. Un valor agregado más alto aumenta la prioridad.",
     )
-    pesos_ingresados = (peso_icee, peso_vss, peso_nbi, peso_mdm, peso_valor_agregado)
+    peso_poblacion = st.number_input(
+        "Peso Población",
+        min_value=0.0,
+        max_value=1.0,
+        value=PESO_INICIAL,
+        step=0.001,
+        format="%.3f",
+        key="peso_poblacion",
+        help="Beneficio. Una población más alta aumenta la prioridad.",
+    )
+    peso_actividades_secundarias = st.number_input(
+        "Peso Actividades Secundarias",
+        min_value=0.0,
+        max_value=1.0,
+        value=PESO_INICIAL,
+        step=0.001,
+        format="%.3f",
+        key="peso_actividades_secundarias",
+        help="Beneficio. Unas actividades secundarias más altas aumentan la prioridad.",
+    )
+    peso_actividades_terciarias = st.number_input(
+        "Peso Actividades Terciarias",
+        min_value=0.0,
+        max_value=1.0,
+        value=PESO_INICIAL,
+        step=0.001,
+        format="%.3f",
+        key="peso_actividades_terciarias",
+        help="Beneficio. Unas actividades terciarias más altas aumentan la prioridad.",
+    )
+    pesos_ingresados = (
+        peso_icee,
+        peso_vss,
+        peso_nbi,
+        peso_mdm,
+        peso_valor_agregado,
+        peso_poblacion,
+        peso_actividades_secundarias,
+        peso_actividades_terciarias,
+    )
     suma_pesos = None if any(peso is None for peso in pesos_ingresados) else sum(pesos_ingresados)
     st.caption(
         "Suma de pesos: —"
@@ -366,6 +520,9 @@ filtradas = datos.filtrar(
     vss,
     nbi,
     valor_agregado,
+    poblacion,
+    actividades_secundarias,
+    actividades_terciarias,
     categorias_sel,
     zomac,
 )
@@ -388,6 +545,9 @@ if calcular_topsis:
                     ("nbi", "NBI", True, peso_nbi),
                     ("mdm", "MDM", True, peso_mdm),
                     ("valor_agregado", "Valor agregado", True, peso_valor_agregado),
+                    ("poblacion", "Población", True, peso_poblacion),
+                    ("actividades_secundarias", "Actividades secundarias", True, peso_actividades_secundarias),
+                    ("actividades_terciarias", "Actividades terciarias", True, peso_actividades_terciarias),
                 ],
             )
         except datos.TopsisError as error:
@@ -402,6 +562,9 @@ if calcular_topsis:
                     "nbi": peso_nbi,
                     "mdm": peso_mdm,
                     "valor_agregado": peso_valor_agregado,
+                    "poblacion": peso_poblacion,
+                    "actividades_secundarias": peso_actividades_secundarias,
+                    "actividades_terciarias": peso_actividades_terciarias,
                 },
                 "divipolas": tuple(sorted(puntajes)),
             }
@@ -416,11 +579,14 @@ if resultado_topsis:
         "Último cálculo: "
         f"{len(resultado_topsis['puntajes'])} municipios, "
         f"VSS {resultado_topsis['serie'].lower()}, "
-        f"pesos ICEE {datos.formato_decimal(pesos_guardados['icee'])}, "
-        f"VSS {datos.formato_decimal(pesos_guardados['vss'])}, "
-        f"NBI {datos.formato_decimal(pesos_guardados['nbi'])}, "
-        f"MDM {datos.formato_decimal(pesos_guardados['mdm'])}, "
-        f"valor agregado {datos.formato_decimal(pesos_guardados.get('valor_agregado'))}."
+        f"pesos ICEE {_peso(pesos_guardados['icee'])}, "
+        f"VSS {_peso(pesos_guardados['vss'])}, "
+        f"NBI {_peso(pesos_guardados['nbi'])}, "
+        f"MDM {_peso(pesos_guardados['mdm'])}, "
+        f"valor agregado {_peso(pesos_guardados.get('valor_agregado'))}, "
+        f"población {_peso(pesos_guardados.get('poblacion'))}, "
+        f"actividades secundarias {_peso(pesos_guardados.get('actividades_secundarias'))}, "
+        f"actividades terciarias {_peso(pesos_guardados.get('actividades_terciarias'))}."
     )
 
 puntajes_topsis = resultado_topsis["puntajes"] if resultado_topsis else {}
@@ -477,17 +643,27 @@ if resultado_topsis:
             fila["divipola"]
             for fila in filtradas
             if None not in (
-                fila["icee"], fila[campo_vss], fila["nbi"], fila["mdm"], fila["valor_agregado"]
+                fila["icee"],
+                fila[campo_vss],
+                fila["nbi"],
+                fila["mdm"],
+                fila["valor_agregado"],
+                fila["poblacion"],
+                fila["actividades_secundarias"],
+                fila["actividades_terciarias"],
             )
         )
     )
-    pesos_actuales = (peso_icee, peso_vss, peso_nbi, peso_mdm, peso_valor_agregado)
+    pesos_actuales = pesos_ingresados
     pesos_previos = (
         resultado_topsis["pesos"]["icee"],
         resultado_topsis["pesos"]["vss"],
         resultado_topsis["pesos"]["nbi"],
         resultado_topsis["pesos"]["mdm"],
         resultado_topsis["pesos"].get("valor_agregado"),
+        resultado_topsis["pesos"].get("poblacion"),
+        resultado_topsis["pesos"].get("actividades_secundarias"),
+        resultado_topsis["pesos"].get("actividades_terciarias"),
     )
     if (
         resultado_topsis["serie"] != serie_vss
@@ -528,7 +704,7 @@ with st.container(border=True):
             st.info("Calcula TOPSIS en el panel izquierdo para ver el coeficiente en el mapa.")
     else:
         minimo, maximo = datos.limites(filas, campo)
-        logaritmica = variable.startswith("VSS") or variable == "Valor agregado"
+        logaritmica = datos.escala_logaritmica(variable)
     if logaritmica:
         minimo_eje = max(minimo, 1)
         maximo_eje = max(maximo, minimo_eje + 1)
@@ -606,6 +782,9 @@ with st.container(border=True):
                 "VSS rural {vss_rural}\n"
                 "VSS total {vss_total}\n"
                 "Valor agregado {valor_agregado}\n"
+                "Población {poblacion}\n"
+                "Actividades secundarias {actividades_secundarias}\n"
+                "Actividades terciarias {actividades_terciarias}\n"
                 "Priorización {priorizacion}"
             )
         },
@@ -613,10 +792,10 @@ with st.container(border=True):
     st.pydeck_chart(mapa, height=640)
     if variable == "Priorización":
         nota_escala = " El coeficiente va de 0 a 1: más color, más prioridad."
-    elif variable == "Valor agregado":
-        nota_escala = " En valor agregado la escala de color es logarítmica."
-    elif logaritmica:
+    elif logaritmica and variable.startswith("VSS"):
         nota_escala = " En viviendas sin servicio la escala de color es logarítmica."
+    elif logaritmica:
+        nota_escala = f" En {variable.lower()} la escala de color es logarítmica."
     else:
         nota_escala = ""
     st.caption(
@@ -642,6 +821,9 @@ tabla_df = pd.DataFrame(
             "ICEE": fila["icee"],
             "MDM": fila["mdm"],
             "Valor agregado": fila["valor_agregado"],
+            "Población": fila["poblacion"],
+            "Actividades secundarias": fila["actividades_secundarias"],
+            "Actividades terciarias": fila["actividades_terciarias"],
             "Área km²": fila["area_km2"],
         }
         for fila in filas_vista
@@ -672,6 +854,9 @@ with st.container(border=True):
             "ICEE": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%.2f"),
             "MDM": st.column_config.NumberColumn("MDM", format="%.2f"),
             "Valor agregado": st.column_config.NumberColumn(format="%.2f"),
+            "Población": st.column_config.NumberColumn(format="localized"),
+            "Actividades secundarias": st.column_config.NumberColumn(format="%.2f"),
+            "Actividades terciarias": st.column_config.NumberColumn(format="%.2f"),
             "Priorización": st.column_config.ProgressColumn(
                 "Priorización",
                 min_value=0,

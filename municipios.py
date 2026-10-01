@@ -20,6 +20,9 @@ CAMPO = {
     "VSS rural": "vss_rural",
     "VSS total": "vss_total",
     "Valor agregado": "valor_agregado",
+    "Población": "poblacion",
+    "Actividades secundarias": "actividades_secundarias",
+    "Actividades terciarias": "actividades_terciarias",
 }
 SERIES_VSS = {
     "Urbano": "vss_urbano",
@@ -29,11 +32,31 @@ SERIES_VSS = {
 
 
 def variables_mapa(serie_vss: str) -> list[str]:
-    """Orden del mapa: priorización, ICEE, NBI, MDM, la serie de VSS y valor agregado."""
-    return ["Priorización", "ICEE", "NBI", "MDM", f"VSS {serie_vss.lower()}", "Valor agregado"]
+    """Orden del mapa: priorización, ICEE, NBI, MDM, la serie de VSS, valor agregado, población y actividades."""
+    return [
+        "Priorización",
+        "ICEE",
+        "NBI",
+        "MDM",
+        f"VSS {serie_vss.lower()}",
+        "Valor agregado",
+        "Población",
+        "Actividades secundarias",
+        "Actividades terciarias",
+    ]
+
+
+def escala_logaritmica(variable: str) -> bool:
+    """VSS, valor agregado, población y actividades se pintan en escala logarítmica."""
+    return variable.startswith("VSS") or variable in {
+        "Valor agregado",
+        "Población",
+        "Actividades secundarias",
+        "Actividades terciarias",
+    }
 
 # Bajo, medio y alto. En ICEE y en MDM el valor alto es mejor.
-# En NBI, viviendas sin servicio, valor agregado y priorización el valor alto se pinta más oscuro.
+# En NBI, viviendas sin servicio, valor agregado, población, actividades y priorización el valor alto se pinta más oscuro.
 PALETAS = {
     "Priorización": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
     "ICEE": ((159, 18, 57), (217, 119, 6), (15, 118, 110)),
@@ -43,6 +66,9 @@ PALETAS = {
     "VSS rural": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
     "VSS total": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
     "Valor agregado": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
+    "Población": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
+    "Actividades secundarias": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
+    "Actividades terciarias": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
 }
 COLORES_LEYENDA = {
     "Priorización": ["#99F6E4", "#D97706", "#9F1239"],
@@ -53,6 +79,9 @@ COLORES_LEYENDA = {
     "VSS rural": ["#99F6E4", "#D97706", "#9F1239"],
     "VSS total": ["#99F6E4", "#D97706", "#9F1239"],
     "Valor agregado": ["#99F6E4", "#D97706", "#9F1239"],
+    "Población": ["#99F6E4", "#D97706", "#9F1239"],
+    "Actividades secundarias": ["#99F6E4", "#D97706", "#9F1239"],
+    "Actividades terciarias": ["#99F6E4", "#D97706", "#9F1239"],
 }
 TOLERANCIA_PESOS = 1e-4
 GRIS_SIN_DATO = [148, 163, 184, 170]
@@ -96,6 +125,9 @@ def cargar_tabla(path: Path = CSV_PATH) -> list[dict]:
                     "vss_total": _numero(_texto(registro, "VSS Total")),
                     "mdm": _numero(_texto(registro, "mdm")),
                     "valor_agregado": _numero(_texto(registro, "valor agregado")),
+                    "poblacion": _numero(_texto(registro, "POBLACION")),
+                    "actividades_secundarias": _numero(_texto(registro, "Actividades secundarias")),
+                    "actividades_terciarias": _numero(_texto(registro, "Actividades terciarias")),
                     "anm": _texto(registro, "ANM") == "1",
                 }
             )
@@ -119,6 +151,9 @@ def filtrar(
     vss: tuple[float, float],
     nbi: tuple[float, float],
     valor_agregado: tuple[float, float],
+    poblacion: tuple[float, float],
+    actividades_secundarias: tuple[float, float],
+    actividades_terciarias: tuple[float, float],
     categorias: list[str],
     zomac: str,
 ) -> list[dict]:
@@ -149,7 +184,16 @@ def filtrar(
         valor = fila["valor_agregado"]
         if valor is None or not (valor_agregado[0] <= valor <= valor_agregado[1]):
             continue
-        resultado.append(fila)
+        for campo, rango in (
+            ("poblacion", poblacion),
+            ("actividades_secundarias", actividades_secundarias),
+            ("actividades_terciarias", actividades_terciarias),
+        ):
+            valor = fila[campo]
+            if valor is None or not (rango[0] <= valor <= rango[1]):
+                break
+        else:
+            resultado.append(fila)
     return resultado
 
 
@@ -160,7 +204,7 @@ def _mezcla(color_a: tuple[int, int, int], color_b: tuple[int, int, int], peso: 
 def color_valor(variable: str, valor: float | None, minimo: float, maximo: float) -> list[int]:
     if valor is None or maximo <= minimo:
         return GRIS_SIN_DATO
-    if variable.startswith("VSS") or variable == "Valor agregado":
+    if escala_logaritmica(variable):
         piso = max(minimo, 1)
         techo = max(maximo, piso + 1)
         posicion = (math.log(max(valor, piso)) - math.log(piso)) / (math.log(techo) - math.log(piso))
@@ -296,6 +340,9 @@ def poligonos_filtrados(
                     "vss_total": formato_entero(fila["vss_total"]),
                     "mdm": formato_decimal(fila.get("mdm")),
                     "valor_agregado": formato_decimal(fila.get("valor_agregado")),
+                    "poblacion": formato_entero(fila.get("poblacion")),
+                    "actividades_secundarias": formato_decimal(fila.get("actividades_secundarias")),
+                    "actividades_terciarias": formato_decimal(fila.get("actividades_terciarias")),
                     "priorizacion": formato_coeficiente(fila.get("priorizacion")),
                     "fill_color": color_valor(variable, fila.get(campo), minimo, maximo),
                 },
