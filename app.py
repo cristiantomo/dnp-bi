@@ -12,7 +12,7 @@ import altair as alt
 import municipios as datos
 
 st.set_page_config(
-    page_title="ICEE municipal",
+    page_title="SIMPLE",
     page_icon=":material/map:",
     layout="wide",
 )
@@ -455,7 +455,7 @@ for fila in filtradas:
     vista["priorizacion"] = puntajes_topsis.get(fila["divipola"])
     filas_vista.append(vista)
 
-st.title("SIMPE: Simulador de Priorización Municipal para la Energización")
+st.title("SIMPLE: Simulador de Priorización Municipal para la Energización")
 st.caption(
     "Cada municipio se ubica con su código DIVIPOLA sobre el Marco Geoestadístico Nacional 2025 del DANE. "
     "Las áreas no municipalizadas no entran en los filtros, el mapa ni la tabla."
