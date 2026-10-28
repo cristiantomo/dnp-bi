@@ -1,4 +1,4 @@
-"""Mapa de municipios con ICEE menor a 95%."""
+"""Mapa de municipios con su ICEE."""
 
 from __future__ import annotations
 

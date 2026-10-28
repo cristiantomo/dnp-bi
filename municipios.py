@@ -8,7 +8,7 @@ import math
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-CSV_PATH = ROOT / "datos" / "Municipio con ICEE menor a 95 por ciento.csv"
+CSV_PATH = ROOT / "datos" / "Municipio con ICEE.csv"
 GEO_PATH = ROOT / "datos" / "geo" / "municipios_mgn2025.geojson"
 
 CAMPO = {
