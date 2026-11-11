@@ -478,12 +478,12 @@ with st.container(horizontal=True):
         f"{int(round(vss_total)):,}".replace(",", "."),
         border=True,
     )
-    st.metric(
-        "ICEE promedio",
-        datos.formato_decimal(icee_ponderado) if icee_ponderado is not None else "—",
-        border=True,
-        help=f"Promedio ponderado por VSS {serie_vss.lower()}.",
-    )
+    # st.metric(
+    #     "ICEE promedio",
+    #     datos.formato_decimal(icee_ponderado) if icee_ponderado is not None else "—",
+    #     border=True,
+    #     help=f"Promedio ponderado por VSS {serie_vss.lower()}.",
+    # )
     st.metric(
         "NBI promedio",
         datos.formato_decimal(nbi_promedio) if nbi_promedio is not None else "—",
