@@ -810,12 +810,41 @@ with st.container(border=True):
                 help="Coeficiente TOPSIS. Más alto, más prioridad.",
             ),
             "Área km²": st.column_config.NumberColumn(format="%.1f"),
-            "Densidad VSS total (viviendas/km²)": st.column_config.NumberColumn(
-                format="%.4f",
-                help="VSS total dividido por el área del municipio, en viviendas por km². Siempre usa el total, no la serie urbana o rural.",
-            ),
+            "Densidad VSS total (viviendas/km²)": st.column_config.NumberColumn(format="%.4f"),
             "Localidades ZNI": st.column_config.NumberColumn(format="%.0f"),
         },
         hide_index=True,
         height=480,
+    )
+    st.subheader("Convenciones")
+    st.caption("Abreviatura, nombre completo y unidad de las columnas de la tabla.")
+    st.dataframe(
+        pd.DataFrame(
+            [
+                ("DIVIPOLA", "División político-administrativa del municipio", "Código de 5 dígitos"),
+                ("Departamento", "Departamento", "Nombre"),
+                ("Municipio", "Municipio", "Nombre"),
+                ("Priorización", "Coeficiente de priorización TOPSIS", "Coeficiente de 0 a 1"),
+                ("Categoría", "Categoría municipal", "1 a 6, o ESP"),
+                ("ZOMAC", "Zonas más afectadas por el conflicto armado", "Sí o No"),
+                ("ZNI", "Localidades en zonas no interconectadas", "Número de localidades"),
+                ("VSS urbano", "Viviendas sin servicio de energía eléctrica en el área urbana", "Viviendas"),
+                ("VSS rural", "Viviendas sin servicio de energía eléctrica en el área rural", "Viviendas"),
+                ("VSS total", "Viviendas sin servicio de energía eléctrica en el municipio", "Viviendas"),
+                ("NBI", "Necesidades básicas insatisfechas", "Porcentaje de personas"),
+                ("IPM", "Índice de pobreza multidimensional", "Porcentaje"),
+                ("ICEE", "Índice de cobertura de energía eléctrica", "Porcentaje de viviendas"),
+                ("MDM", "Medición de desempeño municipal", "Puntaje"),
+                ("VA per cápita", "Valor agregado por habitante", "Millones de pesos por habitante"),
+                ("Área", "Área del municipio", "km²"),
+                ("Densidad VSS total", "VSS total dividido por el área del municipio", "viviendas/km²"),
+            ],
+            columns=["Abreviatura", "Nombre completo", "Unidad"],
+        ),
+        column_config={
+            "Abreviatura": st.column_config.TextColumn(width="small"),
+            "Nombre completo": st.column_config.TextColumn(width="large"),
+            "Unidad": st.column_config.TextColumn(width="medium"),
+        },
+        hide_index=True,
     )

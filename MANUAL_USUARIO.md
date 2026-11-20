@@ -129,6 +129,8 @@ ICEE y priorización se ven como barra. La priorización vacía significa que es
 
 **Descargar tabla filtrada** baja un archivo CSV llamado `municipios_icee_filtrado.csv`. Usa punto y coma entre columnas y coma decimal, para abrirlo en Excel en español. El archivo trae las filas del filtro, no todos los municipios del país.
 
+Debajo de la tabla está **Convenciones**. Es otra tabla con la abreviatura, el nombre completo y la unidad de cada columna.
+
 ## Qué significa cada dato
 
 - **DIVIPOLA.** Código de cinco dígitos del municipio, del DANE.
