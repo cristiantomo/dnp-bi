@@ -767,7 +767,7 @@ tabla_df = pd.DataFrame(
             "MDM": fila["mdm"],
             "Valor agregado per capita": fila["valor_agregado_per_capita"],
             "Área km²": fila["area_km2"],
-            "Densidad VSS total": (
+            "Densidad VSS total (viviendas/km²)": (
                 None
                 if fila["vss_total"] is None or not fila["area_km2"]
                 else fila["vss_total"] / fila["area_km2"]
@@ -810,7 +810,7 @@ with st.container(border=True):
                 help="Coeficiente TOPSIS. Más alto, más prioridad.",
             ),
             "Área km²": st.column_config.NumberColumn(format="%.1f"),
-            "Densidad VSS total": st.column_config.NumberColumn(
+            "Densidad VSS total (viviendas/km²)": st.column_config.NumberColumn(
                 format="%.4f",
                 help="VSS total dividido por el área del municipio, en viviendas por km². Siempre usa el total, no la serie urbana o rural.",
             ),
