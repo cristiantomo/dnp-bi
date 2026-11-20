@@ -118,7 +118,7 @@ La geometría es el Marco Geoestadístico Nacional 2025 del DANE.
 
 La tabla se llama **Municipios filtrados**. Muestra solo los municipios que pasan el filtro.
 
-Columnas: DIVIPOLA, departamento, municipio, priorización, categoría, ZOMAC, localidades ZNI, VSS urbano, VSS rural, VSS total, NBI, IPM, ICEE, MDM, valor agregado per cápita y área en km².
+Columnas: DIVIPOLA, departamento, municipio, priorización, categoría, ZOMAC, localidades ZNI, VSS urbano, VSS rural, VSS total, NBI, IPM, ICEE, MDM, valor agregado per cápita, área en km² y densidad de VSS total.
 
 Orden:
 
@@ -142,6 +142,7 @@ ICEE y priorización se ven como barra. La priorización vacía significa que es
 - **ZOMAC.** Sí, si el municipio es zona más afectada por el conflicto armado.
 - **Localidades ZNI.** Número de localidades del municipio en zonas no interconectadas. Sirve para filtrar y aparece en la tabla descargable. No entra en el cálculo TOPSIS ni como variable del mapa.
 - **Área km².** Área del municipio según el mapa del DANE.
+- **Densidad VSS total.** Viviendas sin servicio del total del municipio divididas por su área en km². Siempre usa VSS total, aunque el filtro esté en urbano o rural. Si no hay área, la celda queda vacía. No entra en TOPSIS ni en el mapa.
 
 ## Ejemplo corto
 
