@@ -113,6 +113,7 @@ def cargar_tabla(path: Path = CSV_PATH) -> list[dict]:
                     "vss_total": _numero(_texto(registro, "VSS Total")),
                     "mdm": _numero(_texto(registro, "mdm")),
                     "valor_agregado_per_capita": _numero(_texto(registro, "Valor agregado per capita")),
+                    "localidades_zni": _numero(_texto(registro, "Localidades ZNI")),
                     "anm": _texto(registro, "ANM") == "1",
                 }
             )
@@ -139,6 +140,7 @@ def filtrar(
     valor_agregado_per_capita: tuple[float, float],
     categorias: list[str],
     zomac: str,
+    localidades_zni: tuple[float, float],
 ) -> list[dict]:
     departamentos = set(departamentos)
     divipolas = set(divipolas)
@@ -158,6 +160,11 @@ def filtrar(
         if zomac == "Sí" and not fila["zomac"]:
             continue
         if zomac == "No" and fila["zomac"]:
+            continue
+        localidades = fila["localidades_zni"]
+        if localidades is not None and not (
+            localidades_zni[0] <= localidades <= localidades_zni[1]
+        ):
             continue
         valor_vss = fila[campo_vss]
         if valor_vss is None or not (vss[0] <= valor_vss <= vss[1]):

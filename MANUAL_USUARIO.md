@@ -43,6 +43,7 @@ Puedes combinarlos. Un municipio entra solo si cumple todos a la vez.
 - **Municipio.** La lista muestra municipio, departamento y código DIVIPOLA. Si elegiste departamentos, solo ves municipios de esos departamentos. Si cambias el departamento, vuelve a elegir el municipio.
 - **Categoría.** De 1 a 6, o ESP (especial). Puedes marcar varias. Si no marcas ninguna, entran todas.
 - **ZOMAC.** Zonas más afectadas por el conflicto armado. Elige Todas, Sí o No.
+- **Localidades ZNI.** Rango del número de localidades en zonas no interconectadas. Cero significa que el municipio no tiene. Este filtro no entra en TOPSIS ni en el color del mapa.
 - **Viviendas sin servicio.** Elige Urbano, Rural o Total. Esa misma serie se usa en el filtro de VSS, en el peso de TOPSIS, en el mapa y en las cifras de arriba.
 - **VSS.** Rango de viviendas sin servicio de la serie elegida.
 - **NBI.** Rango de necesidades básicas insatisfechas.
@@ -117,7 +118,7 @@ La geometría es el Marco Geoestadístico Nacional 2025 del DANE.
 
 La tabla se llama **Municipios filtrados**. Muestra solo los municipios que pasan el filtro.
 
-Columnas: DIVIPOLA, departamento, municipio, priorización, categoría, ZOMAC, VSS urbano, VSS rural, VSS total, NBI, IPM, ICEE, MDM, valor agregado per cápita y área en km².
+Columnas: DIVIPOLA, departamento, municipio, priorización, categoría, ZOMAC, localidades ZNI, VSS urbano, VSS rural, VSS total, NBI, IPM, ICEE, MDM, valor agregado per cápita y área en km².
 
 Orden:
 
@@ -139,6 +140,7 @@ ICEE y priorización se ven como barra. La priorización vacía significa que es
 - **Valor agregado per cápita.** Lo que se produce en el municipio, dividido por su población. En la aplicación se muestra en millones de pesos por habitante. Fuentes: DANE, cuentas nacionales departamentales y proyecciones de población.
 - **Categoría.** Categoría municipal, de 1 a 6, o ESP si es especial.
 - **ZOMAC.** Sí, si el municipio es zona más afectada por el conflicto armado.
+- **Localidades ZNI.** Número de localidades del municipio en zonas no interconectadas. Sirve para filtrar y aparece en la tabla descargable. No entra en el cálculo TOPSIS ni como variable del mapa.
 - **Área km².** Área del municipio según el mapa del DANE.
 
 ## Ejemplo corto

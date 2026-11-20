@@ -72,6 +72,7 @@ def _universo(
     valor_agregado_per_capita_rango,
     categorias_sel: list[str],
     zomac: str,
+    localidades_zni_rango,
 ) -> list[dict]:
     return datos.filtrar(
         origen,
@@ -89,6 +90,7 @@ def _universo(
         ),
         categorias_sel,
         zomac,
+        localidades_zni_rango if localidades_zni_rango is not None else RANGO_AMPLIO,
     )
 
 
@@ -156,7 +158,7 @@ with st.sidebar:
                 _rango_manual(f"vss-{serie_vss}"), _rango_manual("rango-nbi"),
                 _rango_manual("rango-ipm"),
                 _rango_manual("rango-valor-agregado-per-capita"),
-                categorias_sel, zomac,
+                categorias_sel, zomac, _rango_manual("rango-localidades-zni"),
             ),
             "icee",
         ),
@@ -230,7 +232,7 @@ with st.sidebar:
                 None, _rango_manual("rango-nbi"),
                 _rango_manual("rango-ipm"),
                 _rango_manual("rango-valor-agregado-per-capita"),
-                categorias_sel, zomac,
+                categorias_sel, zomac, _rango_manual("rango-localidades-zni"),
             ),
             campo_vss,
         ),
@@ -257,7 +259,7 @@ with st.sidebar:
                 None,
                 _rango_manual("rango-ipm"),
                 _rango_manual("rango-valor-agregado-per-capita"),
-                categorias_sel, zomac,
+                categorias_sel, zomac, _rango_manual("rango-localidades-zni"),
             ),
             "nbi",
         ),
@@ -285,7 +287,7 @@ with st.sidebar:
                 nbi if st.session_state.get("rango-nbi-manual") else None,
                 None,
                 _rango_manual("rango-valor-agregado-per-capita"),
-                categorias_sel, zomac,
+                categorias_sel, zomac, _rango_manual("rango-localidades-zni"),
             ),
             "ipm",
         ),
@@ -313,7 +315,7 @@ with st.sidebar:
                 nbi if st.session_state.get("rango-nbi-manual") else None,
                 ipm if st.session_state.get("rango-ipm-manual") else None,
                 None,
-                categorias_sel, zomac,
+                categorias_sel, zomac, _rango_manual("rango-localidades-zni"),
             ),
             "valor_agregado_per_capita",
         ),
@@ -330,6 +332,41 @@ with st.sidebar:
         args=("rango-valor-agregado-per-capita",),
         help=(
             "Valor agregado multiplicado por mil y dividido por la población. "
+            "El mínimo y el máximo son los de los municipios que pasan los demás filtros."
+        ),
+    )
+    zni_min, zni_max = _preparar_rango(
+        "rango-localidades-zni",
+        *_extremos_de(
+            _universo(
+                filas,
+                icee if st.session_state.get("rango-icee-manual") else None,
+                departamentos_sel, municipios_sel, campo_vss,
+                vss if st.session_state.get(f"vss-{serie_vss}-manual") else None,
+                nbi if st.session_state.get("rango-nbi-manual") else None,
+                ipm if st.session_state.get("rango-ipm-manual") else None,
+                (
+                    valor_agregado_per_capita
+                    if st.session_state.get("rango-valor-agregado-per-capita-manual")
+                    else None
+                ),
+                categorias_sel, zomac, None,
+            ),
+            "localidades_zni",
+        ),
+        entero=True,
+    )
+    localidades_zni = st.slider(
+        "Localidades ZNI",
+        min_value=zni_min,
+        max_value=zni_max,
+        step=1,
+        key="rango-localidades-zni",
+        on_change=_marcar_rango,
+        args=("rango-localidades-zni",),
+        help=(
+            "Número de localidades en zonas no interconectadas. "
+            "Cero significa que el municipio no tiene. "
             "El mínimo y el máximo son los de los municipios que pasan los demás filtros."
         ),
     )
@@ -437,6 +474,7 @@ filtradas = datos.filtrar(
     valor_agregado_per_capita,
     categorias_sel,
     zomac,
+    localidades_zni,
 )
 
 if calcular_topsis:
@@ -719,6 +757,7 @@ tabla_df = pd.DataFrame(
             "Priorización": fila["priorizacion"],
             "Categoría": fila["categoria"],
             "ZOMAC": "Sí" if fila["zomac"] else "No",
+            "Localidades ZNI": fila["localidades_zni"],
             "VSS urbano": fila["vss_urbano"],
             "VSS rural": fila["vss_rural"],
             "VSS total": fila["vss_total"],
@@ -766,6 +805,7 @@ with st.container(border=True):
                 help="Coeficiente TOPSIS. Más alto, más prioridad.",
             ),
             "Área km²": st.column_config.NumberColumn(format="%.1f"),
+            "Localidades ZNI": st.column_config.NumberColumn(format="%.0f"),
         },
         hide_index=True,
         height=480,
