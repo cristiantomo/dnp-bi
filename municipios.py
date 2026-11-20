@@ -15,6 +15,7 @@ CAMPO = {
     "Priorización": "priorizacion",
     "ICEE": "icee",
     "NBI": "nbi",
+    "IPM": "ipm",
     "MDM": "mdm",
     "VSS urbano": "vss_urbano",
     "VSS rural": "vss_rural",
@@ -34,6 +35,7 @@ def variables_mapa(serie_vss: str) -> list[str]:
         "Priorización",
         "ICEE",
         "NBI",
+        "IPM",
         "MDM",
         f"VSS {serie_vss.lower()}",
         "Valor agregado per capita",
@@ -45,11 +47,12 @@ def escala_logaritmica(variable: str) -> bool:
     return variable.startswith("VSS") or variable == "Valor agregado per capita"
 
 # Bajo, medio y alto. En ICEE y en MDM el valor alto es mejor.
-# En NBI, viviendas sin servicio, valor agregado per capita y priorización el valor alto se pinta más oscuro.
+# En NBI, IPM, viviendas sin servicio, valor agregado per capita y priorización el valor alto se pinta más oscuro.
 PALETAS = {
     "Priorización": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
     "ICEE": ((159, 18, 57), (217, 119, 6), (15, 118, 110)),
     "NBI": ((15, 118, 110), (217, 119, 6), (159, 18, 57)),
+    "IPM": ((15, 118, 110), (217, 119, 6), (159, 18, 57)),
     "MDM": ((159, 18, 57), (217, 119, 6), (15, 118, 110)),
     "VSS urbano": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
     "VSS rural": ((153, 246, 228), (217, 119, 6), (159, 18, 57)),
@@ -60,6 +63,7 @@ COLORES_LEYENDA = {
     "Priorización": ["#99F6E4", "#D97706", "#9F1239"],
     "ICEE": ["#9F1239", "#D97706", "#0F766E"],
     "NBI": ["#0F766E", "#D97706", "#9F1239"],
+    "IPM": ["#0F766E", "#D97706", "#9F1239"],
     "MDM": ["#9F1239", "#D97706", "#0F766E"],
     "VSS urbano": ["#99F6E4", "#D97706", "#9F1239"],
     "VSS rural": ["#99F6E4", "#D97706", "#9F1239"],
@@ -100,6 +104,7 @@ def cargar_tabla(path: Path = CSV_PATH) -> list[dict]:
                     "departamento": limpiar_nombre(_texto(registro, "NOMBRE DEPARTAMENTO")),
                     "municipio": limpiar_nombre(_texto(registro, "NOMBRE MUNICIPIO")),
                     "nbi": _numero(_texto(registro, "NBI")),
+                    "ipm": _numero(_texto(registro, "IPM")),
                     "icee": _numero(_texto(registro, "ICEE")),
                     "categoria": _texto(registro, "CATEGORIA"),
                     "zomac": _texto(registro, "ZOMAC") == "1",
@@ -130,6 +135,7 @@ def filtrar(
     campo_vss: str,
     vss: tuple[float, float],
     nbi: tuple[float, float],
+    ipm: tuple[float, float],
     valor_agregado_per_capita: tuple[float, float],
     categorias: list[str],
     zomac: str,
@@ -157,6 +163,8 @@ def filtrar(
         if valor_vss is None or not (vss[0] <= valor_vss <= vss[1]):
             continue
         if fila["nbi"] is not None and not (nbi[0] <= fila["nbi"] <= nbi[1]):
+            continue
+        if fila["ipm"] is not None and not (ipm[0] <= fila["ipm"] <= ipm[1]):
             continue
         per_capita = fila["valor_agregado_per_capita"]
         if per_capita is None or not (
@@ -305,6 +313,7 @@ def poligonos_filtrados(
                     "departamento": fila["departamento"],
                     "icee": formato_decimal(fila["icee"]),
                     "nbi": formato_decimal(fila["nbi"]),
+                    "ipm": formato_decimal(fila.get("ipm")),
                     "vss_urbano": formato_entero(fila["vss_urbano"]),
                     "vss_rural": formato_entero(fila["vss_rural"]),
                     "vss_total": formato_entero(fila["vss_total"]),

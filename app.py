@@ -68,6 +68,7 @@ def _universo(
     campo_vss: str,
     vss_rango,
     nbi_rango,
+    ipm_rango,
     valor_agregado_per_capita_rango,
     categorias_sel: list[str],
     zomac: str,
@@ -80,6 +81,7 @@ def _universo(
         campo_vss,
         vss_rango if vss_rango is not None else RANGO_AMPLIO,
         nbi_rango if nbi_rango is not None else RANGO_AMPLIO,
+        ipm_rango if ipm_rango is not None else RANGO_AMPLIO,
         (
             valor_agregado_per_capita_rango
             if valor_agregado_per_capita_rango is not None
@@ -152,6 +154,7 @@ with st.sidebar:
             _universo(
                 filas, None, departamentos_sel, municipios_sel, campo_vss,
                 _rango_manual(f"vss-{serie_vss}"), _rango_manual("rango-nbi"),
+                _rango_manual("rango-ipm"),
                 _rango_manual("rango-valor-agregado-per-capita"),
                 categorias_sel, zomac,
             ),
@@ -225,6 +228,7 @@ with st.sidebar:
                 icee if st.session_state.get("rango-icee-manual") else None,
                 departamentos_sel, municipios_sel, campo_vss,
                 None, _rango_manual("rango-nbi"),
+                _rango_manual("rango-ipm"),
                 _rango_manual("rango-valor-agregado-per-capita"),
                 categorias_sel, zomac,
             ),
@@ -251,6 +255,7 @@ with st.sidebar:
                 departamentos_sel, municipios_sel, campo_vss,
                 vss if st.session_state.get(f"vss-{serie_vss}-manual") else None,
                 None,
+                _rango_manual("rango-ipm"),
                 _rango_manual("rango-valor-agregado-per-capita"),
                 categorias_sel, zomac,
             ),
@@ -269,6 +274,34 @@ with st.sidebar:
         args=("rango-nbi",),
         help="El mínimo y el máximo son los de los municipios que pasan los demás filtros.",
     )
+    ipm_min, ipm_max = _preparar_rango(
+        "rango-ipm",
+        *_extremos_de(
+            _universo(
+                filas,
+                icee if st.session_state.get("rango-icee-manual") else None,
+                departamentos_sel, municipios_sel, campo_vss,
+                vss if st.session_state.get(f"vss-{serie_vss}-manual") else None,
+                nbi if st.session_state.get("rango-nbi-manual") else None,
+                None,
+                _rango_manual("rango-valor-agregado-per-capita"),
+                categorias_sel, zomac,
+            ),
+            "ipm",
+        ),
+        entero=False,
+    )
+    ipm = st.slider(
+        "IPM",
+        min_value=ipm_min,
+        max_value=ipm_max,
+        step=0.01,
+        format="%.2f",
+        key="rango-ipm",
+        on_change=_marcar_rango,
+        args=("rango-ipm",),
+        help="Índice de Pobreza Multidimensional. El mínimo y el máximo son los de los municipios que pasan los demás filtros.",
+    )
     vapc_min, vapc_max = _preparar_rango(
         "rango-valor-agregado-per-capita",
         *_extremos_de(
@@ -278,6 +311,7 @@ with st.sidebar:
                 departamentos_sel, municipios_sel, campo_vss,
                 vss if st.session_state.get(f"vss-{serie_vss}-manual") else None,
                 nbi if st.session_state.get("rango-nbi-manual") else None,
+                ipm if st.session_state.get("rango-ipm-manual") else None,
                 None,
                 categorias_sel, zomac,
             ),
@@ -304,7 +338,7 @@ with st.sidebar:
     st.caption(
         "Se calcula sobre los municipios que pasan el filtro. "
         "ICEE es costo: un valor más bajo, más prioridad. "
-        "VSS, NBI, MDM y valor agregado per capita son beneficio: un valor más alto, más prioridad. "
+        "VSS, NBI, IPM, MDM y valor agregado per capita son beneficio: un valor más alto, más prioridad. "
         f"El peso de VSS se aplica a VSS {serie_vss.lower()}."
     )
     peso_icee = st.number_input(
@@ -337,6 +371,19 @@ with st.sidebar:
         key="peso_nbi",
         help="Beneficio. Más necesidades básicas insatisfechas aumentan la prioridad.",
     )
+    peso_ipm = st.number_input(
+        "Peso IPM",
+        min_value=0.0,
+        max_value=1.0,
+        value=0.0,
+        step=0.01,
+        format="%.2f",
+        key="peso_ipm",
+        help=(
+            "Beneficio. Más pobreza multidimensional aumenta la prioridad. "
+            "Empieza en 0,00 para que los otros cinco pesos de 0,20 sigan sumando 1,00."
+        ),
+    )
     peso_mdm = st.number_input(
         "Peso MDM",
         min_value=0.0,
@@ -361,6 +408,7 @@ with st.sidebar:
         peso_icee,
         peso_vss,
         peso_nbi,
+        peso_ipm,
         peso_mdm,
         peso_valor_agregado_per_capita,
     )
@@ -385,6 +433,7 @@ filtradas = datos.filtrar(
     campo_vss,
     vss,
     nbi,
+    ipm,
     valor_agregado_per_capita,
     categorias_sel,
     zomac,
@@ -406,6 +455,7 @@ if calcular_topsis:
                     ("icee", "ICEE", False, peso_icee),
                     (campo_vss, f"VSS {serie_vss.lower()}", True, peso_vss),
                     ("nbi", "NBI", True, peso_nbi),
+                    ("ipm", "IPM", True, peso_ipm),
                     ("mdm", "MDM", True, peso_mdm),
                     (
                         "valor_agregado_per_capita",
@@ -425,6 +475,7 @@ if calcular_topsis:
                     "icee": peso_icee,
                     "vss": peso_vss,
                     "nbi": peso_nbi,
+                    "ipm": peso_ipm,
                     "mdm": peso_mdm,
                     "valor_agregado_per_capita": peso_valor_agregado_per_capita,
                 },
@@ -444,6 +495,7 @@ if resultado_topsis:
         f"pesos ICEE {_peso(pesos_guardados['icee'])}, "
         f"VSS {_peso(pesos_guardados['vss'])}, "
         f"NBI {_peso(pesos_guardados['nbi'])}, "
+        f"IPM {_peso(pesos_guardados.get('ipm'))}, "
         f"MDM {_peso(pesos_guardados['mdm'])}, "
         f"valor agregado per capita {_peso(pesos_guardados.get('valor_agregado_per_capita'))}."
     )
@@ -505,6 +557,7 @@ if resultado_topsis:
                 fila["icee"],
                 fila[campo_vss],
                 fila["nbi"],
+                fila["ipm"],
                 fila["mdm"],
                 fila["valor_agregado_per_capita"],
             )
@@ -515,6 +568,7 @@ if resultado_topsis:
         resultado_topsis["pesos"]["icee"],
         resultado_topsis["pesos"]["vss"],
         resultado_topsis["pesos"]["nbi"],
+        resultado_topsis["pesos"].get("ipm"),
         resultado_topsis["pesos"]["mdm"],
         resultado_topsis["pesos"].get("valor_agregado_per_capita"),
     )
@@ -630,6 +684,7 @@ with st.container(border=True):
                 "DIVIPOLA {divipola}\n"
                 "ICEE {icee}\n"
                 "NBI {nbi}\n"
+                "IPM {ipm}\n"
                 "MDM {mdm}\n"
                 "VSS urbano {vss_urbano}\n"
                 "VSS rural {vss_rural}\n"
@@ -668,6 +723,7 @@ tabla_df = pd.DataFrame(
             "VSS rural": fila["vss_rural"],
             "VSS total": fila["vss_total"],
             "NBI": fila["nbi"],
+            "IPM": fila["ipm"],
             "ICEE": fila["icee"],
             "MDM": fila["mdm"],
             "Valor agregado per capita": fila["valor_agregado_per_capita"],
@@ -698,6 +754,7 @@ with st.container(border=True):
             "VSS rural": st.column_config.NumberColumn(format="localized"),
             "VSS total": st.column_config.NumberColumn(format="localized"),
             "NBI": st.column_config.NumberColumn(format="%.2f"),
+            "IPM": st.column_config.NumberColumn(format="%.1f"),
             "ICEE": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%.2f"),
             "MDM": st.column_config.NumberColumn("MDM", format="%.2f"),
             "Valor agregado per capita": st.column_config.NumberColumn(format="%.2f"),

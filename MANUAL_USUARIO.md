@@ -46,6 +46,7 @@ Puedes combinarlos. Un municipio entra solo si cumple todos a la vez.
 - **Viviendas sin servicio.** Elige Urbano, Rural o Total. Esa misma serie se usa en el filtro de VSS, en el peso de TOPSIS, en el mapa y en las cifras de arriba.
 - **VSS.** Rango de viviendas sin servicio de la serie elegida.
 - **NBI.** Rango de necesidades básicas insatisfechas.
+- **IPM.** Rango del Índice de Pobreza Multidimensional municipal.
 - **Valor agregado per cápita.** Rango de ese indicador.
 
 Los rangos se ajustan a los demás filtros. El mínimo y el máximo de cada barra son los de los municipios que pasan el resto de filtros.
@@ -58,19 +59,20 @@ Un municipio sin dato de viviendas sin servicio, o sin valor agregado per cápit
 
 El cálculo está al final del panel izquierdo. No corre solo. Pulsa **Calcular TOPSIS**.
 
-Hay cinco pesos. Cada uno va de 0 a 1. Al abrir la aplicación, cada peso vale 0,20. La suma debe ser 1,00. La suma se ve debajo de los pesos.
+Hay seis pesos. Cada uno va de 0 a 1. Al abrir la aplicación, ICEE, VSS, NBI, MDM y valor agregado per cápita valen 0,20. El peso de IPM vale 0,00, así la suma sigue en 1,00. La suma se ve debajo de los pesos.
 
 | Peso | Qué hace un valor más alto |
 | --- | --- |
 | ICEE | Baja la prioridad. Es un costo: menos cobertura, más prioridad. |
 | VSS urbano, rural o total | Sube la prioridad. Más viviendas sin servicio, más prioridad. |
 | NBI | Sube la prioridad. Más necesidades básicas insatisfechas, más prioridad. |
+| IPM | Sube la prioridad. Más pobreza multidimensional, más prioridad. |
 | MDM | Sube la prioridad. Más puntaje de desempeño municipal, más prioridad. |
 | Valor agregado per cápita | Sube la prioridad. Más valor agregado por habitante, más prioridad. |
 
 El peso de VSS se aplica a la serie que esté elegida en ese momento.
 
-El puntaje va de 0 a 1. Más alto, más prioridad. Se calcula solo con los municipios del filtro que tienen los cinco datos: ICEE, VSS de la serie elegida, NBI, MDM y valor agregado per cápita. Hacen falta al menos dos municipios con esos datos.
+El puntaje va de 0 a 1. Más alto, más prioridad. Se calcula solo con los municipios del filtro que tienen los seis datos: ICEE, VSS de la serie elegida, NBI, IPM, MDM y valor agregado per cápita. Hacen falta al menos dos municipios con esos datos.
 
 El orden es relativo a ese grupo. Si cambias el filtro y vuelves a calcular, los puntajes cambian.
 
@@ -80,7 +82,7 @@ Estos mensajes impiden el cálculo:
 
 - Algún peso está vacío o fuera de 0 a 1.
 - Los pesos no suman 1,00.
-- Hay menos de dos municipios con los cinco datos.
+- Hay menos de dos municipios con los seis datos.
 - Un criterio vale cero en todos los municipios del filtro.
 
 Cuando el cálculo sale bien, el panel dice para cuántos municipios se hizo y con qué serie de VSS.
@@ -92,6 +94,7 @@ Sobre el mapa eliges la variable del color:
 - Priorización
 - ICEE
 - NBI
+- IPM
 - MDM
 - VSS de la serie elegida
 - Valor agregado per cápita
@@ -100,13 +103,13 @@ La barra de color muestra la escala. En viviendas sin servicio y en valor agrega
 
 Cómo leer el color:
 
-- **Priorización, NBI, viviendas sin servicio y valor agregado per cápita.** El color oscuro es un valor alto.
+- **Priorización, NBI, IPM, viviendas sin servicio y valor agregado per cápita.** El color oscuro es un valor alto.
 - **ICEE y MDM.** El verde es un valor alto. El rojo es un valor bajo. En estos dos, el valor alto es mejor cobertura o mejor desempeño.
 - **Priorización.** El coeficiente va de 0 a 1. Más color, más prioridad. Si aún no calculas, el mapa lo indica.
 
 En color están los municipios del filtro. En gris está el resto del país. En priorización, también quedan en gris los municipios del filtro que no tienen puntaje.
 
-El mapa se centra en los municipios del filtro. Puedes acercar, alejar y moverlo. Al pasar el cursor sobre un municipio ves su nombre, departamento, DIVIPOLA, ICEE, NBI, MDM, VSS urbano, rural y total, valor agregado per cápita y priorización.
+El mapa se centra en los municipios del filtro. Puedes acercar, alejar y moverlo. Al pasar el cursor sobre un municipio ves su nombre, departamento, DIVIPOLA, ICEE, NBI, IPM, MDM, VSS urbano, rural y total, valor agregado per cápita y priorización.
 
 La geometría es el Marco Geoestadístico Nacional 2025 del DANE.
 
@@ -114,7 +117,7 @@ La geometría es el Marco Geoestadístico Nacional 2025 del DANE.
 
 La tabla se llama **Municipios filtrados**. Muestra solo los municipios que pasan el filtro.
 
-Columnas: DIVIPOLA, departamento, municipio, priorización, categoría, ZOMAC, VSS urbano, VSS rural, VSS total, NBI, ICEE, MDM, valor agregado per cápita y área en km².
+Columnas: DIVIPOLA, departamento, municipio, priorización, categoría, ZOMAC, VSS urbano, VSS rural, VSS total, NBI, IPM, ICEE, MDM, valor agregado per cápita y área en km².
 
 Orden:
 
@@ -131,6 +134,7 @@ ICEE y priorización se ven como barra. La priorización vacía significa que es
 - **ICEE.** Índice de Cobertura de Energía Eléctrica. Porcentaje de viviendas del municipio con servicio de energía eléctrica. Año 2024, entregado por el DNP.
 - **VSS.** Viviendas sin servicio de energía eléctrica. Puede ser el área urbana, el área rural o el total. Se calcula con el ICEE de 2024.
 - **NBI.** Necesidades Básicas Insatisfechas. Porcentaje de personas sin cubrir vivienda, servicios, espacio para vivir, escuela o ingresos del hogar. Fuente: DANE.
+- **IPM.** Índice de Pobreza Multidimensional municipal. Un valor más alto indica más pobreza. Está en la columna IPM de `datos/Municipio con ICEE.csv`.
 - **MDM.** Medición de Desempeño Municipal. Junta la gestión de la alcaldía y los resultados en educación, salud, servicios públicos y seguridad. Fuente: DNP, TerriData.
 - **Valor agregado per cápita.** Lo que se produce en el municipio, dividido por su población. En la aplicación se muestra en millones de pesos por habitante. Fuentes: DANE, cuentas nacionales departamentales y proyecciones de población.
 - **Categoría.** Categoría municipal, de 1 a 6, o ESP si es especial.
@@ -141,7 +145,7 @@ ICEE y priorización se ven como barra. La priorización vacía significa que es
 
 1. Deja los filtros como están, o elige un departamento.
 2. En viviendas sin servicio, deja **Total** o cambia a **Rural** si quieres priorizar el área rural.
-3. Revisa que los cinco pesos sumen 1,00.
+3. Revisa que los seis pesos sumen 1,00. Si quieres que el IPM cuente, súbele el peso y baja los demás.
 4. Pulsa **Calcular TOPSIS**.
 5. En el mapa, elige **Priorización**.
 6. Mira la tabla: el primer municipio es el de mayor prioridad en ese filtro.
