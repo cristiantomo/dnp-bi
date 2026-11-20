@@ -129,7 +129,7 @@ ICEE y priorización se ven como barra. La priorización vacía significa que es
 
 **Descargar tabla filtrada** baja un archivo CSV llamado `municipios_icee_filtrado.csv`. Usa punto y coma entre columnas y coma decimal, para abrirlo en Excel en español. El archivo trae las filas del filtro, no todos los municipios del país.
 
-Debajo de la tabla está **Convenciones**. Es otra tabla con la abreviatura, el nombre completo y la unidad de cada columna.
+Debajo de la tabla está **Convenciones**. Es otra tabla con la abreviatura, el nombre completo, la unidad, la fuente y un enlace de descarga de cada columna. Si la columna no tiene archivo propio, la celda queda en blanco con un guion. El valor agregado per cápita tiene dos enlaces: el valor agregado y la población.
 
 ## Qué significa cada dato
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import math
 
 import pandas as pd
@@ -18,6 +19,82 @@ st.set_page_config(
 )
 
 ORDEN_CATEGORIA = {"1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "ESP": 7}
+ENLACE_ICEE = "https://docs.upme.gov.co/SIMEC/Energia%20Electrica/Documents/Informes_cobertura/Anexo_ICEE_2024_dpto_mpio.xlsx"
+ENLACE_NBI = "https://www.dane.gov.co/files/censo2018/informacion-tecnica/CNPV-2018-NBI.xlsx"
+ENLACE_MDM = "https://planeacionnacional-my.sharepoint.com/:x:/g/personal/planeacionterritorial_dnp_gov_co/IQD5ddWB_AudTanYsQ53D00CAZ_T2yWJT83BNaBdHri7cbw"
+ENLACE_VALOR_AGREGADO = "https://www.dane.gov.co/files/operaciones/PIB/anex-PIBDep-ValorAgreMuni-2011-2024p.xlsx"
+ENLACE_POBLACION = "https://www.dane.gov.co/files/censo2018/proyecciones-de-poblacion/Municipal/PPED-AreaMun-2018-2042_VP.xlsx"
+ENLACE_ZOMAC = "https://www.finagro.com.co/sites/default/files/documents/2022-02/ANEXO%20MUNICIPIOS%20ZOMAC.xlsx"
+ENLACE_CATEGORIA = "https://www.contaduria.gov.co/categorizacion-de-departamentos-distritos-y-municipios"
+ENLACE_GEOGRAFIA = "https://geoportal.dane.gov.co/descargas/mgn_2025/MGN2025_MPIO_GRAFICO.zip"
+ENLACE_ZNI = "https://ipse.gov.co/cnm/"
+ENLACE_IPM = "https://www.dane.gov.co/index.php/estadisticas-por-tema/pobreza-y-condiciones-de-vida/pobreza-y-desigualdad/medida-de-pobreza-multidimensional-de-fuente-censal"
+
+
+def _enlace(url: str, texto: str) -> str:
+    return (
+        f'<a href="{html.escape(url, quote=True)}" target="_blank" rel="noopener noreferrer">'
+        f"{html.escape(texto)}</a>"
+    )
+
+
+def _tabla_convenciones() -> str:
+    """Tabla de abreviatura, nombre, unidad, fuente y descarga. El último campo ya es HTML."""
+    filas = [
+        ("DIVIPOLA", "División político-administrativa del municipio", "Código de 5 dígitos", "—", "—"),
+        ("Departamento", "Departamento", "Nombre", "—", "—"),
+        ("Municipio", "Municipio", "Nombre", "—", "—"),
+        ("Priorización", "Coeficiente de priorización TOPSIS", "Coeficiente de 0 a 1", "—", "—"),
+        ("Categoría", "Categoría municipal", "1 a 6, o ESP", "Contaduría General de la Nación", _enlace(ENLACE_CATEGORIA, "Abrir")),
+        ("ZOMAC", "Zonas más afectadas por el conflicto armado", "Sí o No", "FINAGRO", _enlace(ENLACE_ZOMAC, "Descargar")),
+        ("ZNI", "Localidades en zonas no interconectadas", "Número de localidades", "IPSE", _enlace(ENLACE_ZNI, "Abrir")),
+        ("VSS urbano", "Viviendas sin servicio de energía eléctrica en el área urbana", "Viviendas", "UPME", _enlace(ENLACE_ICEE, "Descargar")),
+        ("VSS rural", "Viviendas sin servicio de energía eléctrica en el área rural", "Viviendas", "UPME", _enlace(ENLACE_ICEE, "Descargar")),
+        ("VSS total", "Viviendas sin servicio de energía eléctrica en el municipio", "Viviendas", "UPME", _enlace(ENLACE_ICEE, "Descargar")),
+        ("NBI", "Necesidades básicas insatisfechas", "Porcentaje de personas", "DANE", _enlace(ENLACE_NBI, "Descargar")),
+        ("IPM", "Índice de pobreza multidimensional", "Porcentaje", "DANE", _enlace(ENLACE_IPM, "Abrir")),
+        ("ICEE", "Índice de cobertura de energía eléctrica", "Porcentaje de viviendas", "UPME", _enlace(ENLACE_ICEE, "Descargar")),
+        ("MDM", "Medición de desempeño municipal", "Puntaje", "DNP", _enlace(ENLACE_MDM, "Descargar")),
+        (
+            "VA per cápita",
+            "Valor agregado por habitante",
+            "Millones de pesos por habitante",
+            "DANE",
+            _enlace(ENLACE_VALOR_AGREGADO, "Valor agregado")
+            + " · "
+            + _enlace(ENLACE_POBLACION, "Población"),
+        ),
+        ("Área", "Área del municipio", "km²", "DANE", _enlace(ENLACE_GEOGRAFIA, "Descargar")),
+        (
+            "Densidad VSS total",
+            "VSS total dividido por el área del municipio",
+            "viviendas/km²",
+            "DANE",
+            _enlace(ENLACE_GEOGRAFIA, "Descargar"),
+        ),
+    ]
+    cuerpo = []
+    for abreviatura, nombre, unidad, fuente, descarga in filas:
+        cuerpo.append(
+            "<tr>"
+            f"<td>{html.escape(abreviatura)}</td>"
+            f"<td>{html.escape(nombre)}</td>"
+            f"<td>{html.escape(unidad)}</td>"
+            f"<td>{html.escape(fuente)}</td>"
+            f"<td>{descarga}</td>"
+            "</tr>"
+        )
+    return (
+        '<table class="convenciones">'
+        "<thead><tr><th>Abreviatura</th><th>Nombre completo</th><th>Unidad</th><th>Fuente</th><th>Descarga</th></tr></thead>"
+        f"<tbody>{''.join(cuerpo)}</tbody></table>"
+        "<style>"
+        ".convenciones { width: 100%; border-collapse: collapse; }"
+        ".convenciones th, .convenciones td { text-align: left; padding: 0.35rem 0.55rem; "
+        "border-bottom: 1px solid rgba(128,128,128,0.35); vertical-align: top; }"
+        ".convenciones th { font-weight: 600; }"
+        "</style>"
+    )
 RANGO_AMPLIO = (-1e18, 1e18)
 PESO_INICIAL = 0.2
 
@@ -817,34 +894,5 @@ with st.container(border=True):
         height=480,
     )
     st.subheader("Convenciones")
-    st.caption("Abreviatura, nombre completo y unidad de las columnas de la tabla.")
-    st.dataframe(
-        pd.DataFrame(
-            [
-                ("DIVIPOLA", "División político-administrativa del municipio", "Código de 5 dígitos"),
-                ("Departamento", "Departamento", "Nombre"),
-                ("Municipio", "Municipio", "Nombre"),
-                ("Priorización", "Coeficiente de priorización TOPSIS", "Coeficiente de 0 a 1"),
-                ("Categoría", "Categoría municipal", "1 a 6, o ESP"),
-                ("ZOMAC", "Zonas más afectadas por el conflicto armado", "Sí o No"),
-                ("ZNI", "Localidades en zonas no interconectadas", "Número de localidades"),
-                ("VSS urbano", "Viviendas sin servicio de energía eléctrica en el área urbana", "Viviendas"),
-                ("VSS rural", "Viviendas sin servicio de energía eléctrica en el área rural", "Viviendas"),
-                ("VSS total", "Viviendas sin servicio de energía eléctrica en el municipio", "Viviendas"),
-                ("NBI", "Necesidades básicas insatisfechas", "Porcentaje de personas"),
-                ("IPM", "Índice de pobreza multidimensional", "Porcentaje"),
-                ("ICEE", "Índice de cobertura de energía eléctrica", "Porcentaje de viviendas"),
-                ("MDM", "Medición de desempeño municipal", "Puntaje"),
-                ("VA per cápita", "Valor agregado por habitante", "Millones de pesos por habitante"),
-                ("Área", "Área del municipio", "km²"),
-                ("Densidad VSS total", "VSS total dividido por el área del municipio", "viviendas/km²"),
-            ],
-            columns=["Abreviatura", "Nombre completo", "Unidad"],
-        ),
-        column_config={
-            "Abreviatura": st.column_config.TextColumn(width="small"),
-            "Nombre completo": st.column_config.TextColumn(width="large"),
-            "Unidad": st.column_config.TextColumn(width="medium"),
-        },
-        hide_index=True,
-    )
+    st.caption("Abreviatura, nombre completo, unidad, fuente y enlace de descarga de cada columna.")
+    st.markdown(_tabla_convenciones(), unsafe_allow_html=True)
